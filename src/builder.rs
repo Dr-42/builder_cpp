@@ -96,6 +96,7 @@ impl<'a> Target<'a> {
         }
         for include_substring in include_substrings {
             if self.dependant_includes.contains_key(&include_substring) {
+                log(LogLevel::Log, &format!("  Found dependant includes in cache: {:?}", &self.dependant_includes.get(&include_substring).unwrap()));
                 continue;
             }
             let mut include_path = String::new();
