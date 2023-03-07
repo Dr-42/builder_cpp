@@ -32,6 +32,7 @@ pub struct BuildConfig {
 pub struct TargetConfig {
     pub name: String,
     pub src: String,
+    pub include_dir: String,
     pub typ: String,
     pub cflags: String,
     pub libs: String,
@@ -57,6 +58,7 @@ pub fn parse_config(path: &str) -> (BuildConfig, Vec<TargetConfig>) {
         let target_config = TargetConfig {
             name: target["name"].as_str().unwrap().to_string(),
             src: target["src"].as_str().unwrap().to_string(),
+            include_dir: target["include_dir"].as_str().unwrap().to_string(),
             typ: target["type"].as_str().unwrap().to_string(),
             cflags: target["cflags"].as_str().unwrap().to_string(),
             libs: target["libs"].as_str().unwrap().to_string(),
