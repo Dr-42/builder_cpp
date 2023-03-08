@@ -3,7 +3,7 @@ use toml::Table;
 use colored::Colorize;
 
 //Log utils
-#[derive(PartialEq, PartialOrd, Debug)]
+#[derive(PartialEq, PartialOrd)]
 pub enum LogLevel {
     Info,
     Log,

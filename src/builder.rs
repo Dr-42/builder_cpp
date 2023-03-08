@@ -12,7 +12,7 @@ pub struct Target<'a> {
     pub build_config: &'a BuildConfig,
     pub target_config: &'a TargetConfig,
     dependant_includes: HashMap<String, Vec<String>>,
-    bin_path: String,
+    pub bin_path: String,
 }
 
 //Represents a source file
@@ -59,7 +59,7 @@ impl<'a> Target<'a> {
 
     pub fn build(&self) {
         for src in &self.srcs {
-            if src.to_build(self.build_config) {
+            if src.to_build() {
                 src.build(self.build_config, self.target_config);
             }
         }
@@ -104,21 +104,7 @@ impl<'a> Target<'a> {
         cmd.push_str(" -o ");
         cmd.push_str(&self.bin_path);
         if self.target_config.typ == "dll" {
-            #[cfg(target_os = "windows")]
-            cmd.push_str(".dll");
-            #[cfg(target_os = "linux")]
-            cmd.push_str(".so");
             cmd.push_str(" -shared ");
-        } else if self.target_config.typ == "exe" {
-            #[cfg(target_os = "windows")]
-            cmd.push_str(".exe");
-            #[cfg(target_os = "linux")]
-            cmd.push_str("");
-            }
-        } else {
-            log(LogLevel::Error, "Invalid target type in target config");
-            log(LogLevel::Error, "  Valid types are: exe, dll");
-            std::process::exit(1);
         }
         
         for obj in objs {
@@ -182,7 +168,7 @@ impl<'a> Target<'a> {
         name.to_string()
     }
 
-    //returns the object file name for the given source file
+    //retur the object file name for the given source file
     fn get_src_obj_name(&self, src_name: &str, build_config: &'a BuildConfig) -> String {
         let mut obj_name = String::new();
         obj_name.push_str(&build_config.obj_dir);
@@ -245,7 +231,7 @@ impl Src {
         }
     }
 
-    fn to_build(&self, build_config: &BuildConfig) -> bool {
+    fn to_build(&self) -> bool {
         if !Path::new(&self.obj_name).exists() {
             log(LogLevel::Log, &format!("Building: Object file does not exist: {}", &self.obj_name));
             return true;
@@ -302,5 +288,40 @@ impl Src {
             log(LogLevel::Error, &format!("  Stdout: {}", String::from_utf8_lossy(&output.stdout)));
             log(LogLevel::Error, &format!("  Stderr: {}", String::from_utf8_lossy(&output.stderr)));
         }
+    }
+}
+
+pub fn clean(build_config: &BuildConfig) {
+    if Path::new(&build_config.obj_dir).exists() {
+        fs::remove_dir_all(&build_config.obj_dir).unwrap();
+        log(LogLevel::Info, &format!("Cleaning: {}", &build_config.obj_dir));
+    }
+    if Path::new(&build_config.build_dir).exists() {
+        fs::remove_dir_all(&build_config.build_dir).unwrap();
+        log(LogLevel::Info, &format!("Cleaning: {}", &build_config.build_dir));
+    }
+}
+
+pub fn build(build_config: &BuildConfig, targets: &Vec<TargetConfig>) {
+    for target in targets {
+        let trgt = Target::new(build_config, target);
+        trgt.build();
+    }
+}
+
+pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig) {
+    let trgt = Target::new(build_config, exe_target);
+    if !Path::new(&trgt.bin_path).exists() {
+        return;
+    }
+    log(LogLevel::Log, &format!("Running: {}", &trgt.bin_path));
+    let mut cmd = std::process::Command::new(&trgt.bin_path);
+    let output = cmd.output().expect("failed to execute process");
+    if output.status.success() {
+        log(LogLevel::Info, &format!("  Success: {}", &trgt.bin_path));
+    } else {
+        log(LogLevel::Error, &format!("  Error: {}", &trgt.bin_path));
+        log(LogLevel::Warn, &format!("  Stdout: {}", String::from_utf8_lossy(&output.stdout)));
+        log(LogLevel::Error, &format!("  Stderr: {}", String::from_utf8_lossy(&output.stderr)));
     }
 }
