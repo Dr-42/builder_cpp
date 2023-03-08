@@ -12,6 +12,7 @@ pub struct Target<'a> {
     pub build_config: &'a BuildConfig,
     pub target_config: &'a TargetConfig,
     dependant_includes: HashMap<String, Vec<String>>,
+    bin_path: String,
 }
 
 //Represents a source file
@@ -27,11 +28,30 @@ impl<'a> Target<'a> {
     pub fn new(build_config: &'a BuildConfig, target_config: &'a TargetConfig) -> Self {
         let srcs = Vec::new();
         let dependant_includes: HashMap<String, Vec<String>> = HashMap::new();
+        
+        let mut bin_path = String::new();
+        bin_path.push_str(&build_config.build_dir);
+        bin_path.push_str("/");
+        bin_path.push_str(&target_config.name);
+        #[cfg(target_os = "windows")]
+        if target_config.typ == "exe" {
+            bin_path.push_str(".exe");
+        } else if target_config.typ == "dll" {
+            bin_path.push_str(".dll");
+        }
+        #[cfg(target_os = "linux")]
+        if target_config.typ == "exe" {
+            bin_path.push_str("");
+        } else if target_config.typ == "dll" {
+            bin_path.push_str(".so");
+        }
+
         let mut target = Target {
             srcs,
             build_config,
             target_config,
             dependant_includes,
+            bin_path,
         };
         target.get_srcs(&target_config.src, target_config);
         target
@@ -46,7 +66,31 @@ impl<'a> Target<'a> {
         self.link();
     }
 
+    pub fn to_link(&self) -> bool {
+        let to_link = false;
+
+        if !Path::new(&self.bin_path).exists() {
+            log(LogLevel::Log, &format!("Linking: Binary does not exist {}", &self.bin_path));
+            return true;
+        }
+        for src in &self.srcs {
+            let obj_name = &src.obj_name;
+            let obj_modification_time = fs::metadata(&obj_name).unwrap().modified().unwrap();
+            let bin_modification_time = fs::metadata(&self.bin_path).unwrap().modified().unwrap();
+            if obj_modification_time > bin_modification_time {
+                log(LogLevel::Log, "Linking: Binary is older than object file {obj_name}");
+                return true;
+            }
+        }
+        to_link
+    }
+
     pub fn link(&self) {
+        if !self.to_link() {
+            log(LogLevel::Info, "Linking: No need to link");
+            return;
+        }
+
         let mut objs = Vec::new();
         if !Path::new(&self.build_config.build_dir).exists() {
             fs::create_dir(&self.build_config.build_dir).unwrap();
@@ -58,30 +102,22 @@ impl<'a> Target<'a> {
         let mut cmd = String::new();
         cmd.push_str(&self.build_config.compiler);
         cmd.push_str(" -o ");
-        cmd.push_str(&self.build_config.build_dir);
-        cmd.push_str("/");
-        cmd.push_str(&self.target_config.name);
-
-        #[cfg(target_os = "windows")]
-        if self.target_config.typ == "exe" {
-            cmd.push_str(".exe");
-        } else if self.target_config.typ == "dll" {
+        cmd.push_str(&self.bin_path);
+        if self.target_config.typ == "dll" {
+            #[cfg(target_os = "windows")]
             cmd.push_str(".dll");
+            #[cfg(target_os = "linux")]
+            cmd.push_str(".so");
             cmd.push_str(" -shared ");
+        } else if self.target_config.typ == "exe" {
+            #[cfg(target_os = "windows")]
+            cmd.push_str(".exe");
+            #[cfg(target_os = "linux")]
+            cmd.push_str("");
+            }
         } else {
             log(LogLevel::Error, "Invalid target type in target config");
             log(LogLevel::Error, "  Valid types are: exe, dll");
-            std::process::exit(1);
-        }
-        #[cfg(target_os = "linux")]
-        if self.target_config.typ == "exe" {
-            cmd.push_str("");
-        } else if self.target_config.typ == "dll" {
-            cmd.push_str(".so");
-            cmd.push_str(" -shared ");
-        } else {
-            log(LogLevel::Error, "Invalid target type in target config");
-            log(LogLevel::Error, "  Valid types are: exe, so");
             std::process::exit(1);
         }
         
@@ -211,19 +247,19 @@ impl Src {
 
     fn to_build(&self, build_config: &BuildConfig) -> bool {
         if !Path::new(&self.obj_name).exists() {
-            log(LogLevel::Info, &format!("Building: Object file does not exist: {}", &self.obj_name));
+            log(LogLevel::Log, &format!("Building: Object file does not exist: {}", &self.obj_name));
             return true;
         }
         let obj_modified = fs::metadata(&self.obj_name).unwrap().modified().unwrap();
         let src_modified = fs::metadata(&self.path).unwrap().modified().unwrap();
         if obj_modified < src_modified {
-            log(LogLevel::Info, &format!("Building: Object file is older than source file: {}", &self.obj_name));
+            log(LogLevel::Log, &format!("Building: Object file is older than source file: {}", &self.obj_name));
             return true;
         }
         for dependant_include in &self.dependant_includes {
             let dependant_include_modified = fs::metadata(&dependant_include).unwrap().modified().unwrap();
             if obj_modified < dependant_include_modified {
-                log(LogLevel::Info, &format!("Building: Object file is older than dependant include file: {}", &dependant_include));
+                log(LogLevel::Log, &format!("Building: Object file is older than dependant include file: {}", &dependant_include));
                 return true;
             }
         }

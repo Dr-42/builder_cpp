@@ -1,6 +1,7 @@
 use builder_cpp::utils;
 use builder_cpp::builder;
 fn main() {
+    utils::set_log_level(utils::LogLevel::Log);
     #[cfg(target_os = "linux")]
     let (build_config, targets) = utils::parse_config("./config_linux.toml");
     #[cfg(target_os = "windows")]

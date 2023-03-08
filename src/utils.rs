@@ -3,12 +3,15 @@ use toml::Table;
 use colored::Colorize;
 
 //Log utils
+#[derive(PartialEq, PartialOrd, Debug)]
 pub enum LogLevel {
     Info,
     Log,
     Warn,
     Error,
 }
+
+static mut LOG_LEVEL: LogLevel = LogLevel::Info;
 
 pub fn log(level: LogLevel, message: &str) {
     let level_str = match level {
@@ -17,7 +20,17 @@ pub fn log(level: LogLevel, message: &str) {
         LogLevel::Warn => "[WARN]".yellow(),
         LogLevel::Error => "[ERROR]".red(),
     };
-    println!("{} {}", level_str, message);
+    unsafe{
+        if level >= LOG_LEVEL {
+        println!("{} {}", level_str, message);
+        }
+    }
+}
+
+pub fn set_log_level(level: LogLevel) {
+    unsafe{
+        LOG_LEVEL = level;
+    }
 }
 
 //Toml utils
