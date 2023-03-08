@@ -270,7 +270,7 @@ impl Src {
         cmd.push_str(&target_config.cflags);
 
         if target_config.typ == "dll" {
-            cmd.push_str(" -fPIC -shared");
+            cmd.push_str(" -fPIC");
         }
 
         log(LogLevel::Info, &format!("Building: {}", &self.name));
@@ -282,6 +282,14 @@ impl Src {
             .expect("failed to execute process");
         if output.status.success() {
             log(LogLevel::Info, &format!("  Success: {}", &self.name));
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if stdout.len() > 0 {
+                log(LogLevel::Info, &format!("  Stdout: {}", stdout));
+            }
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if stderr.len() > 0 {
+                log(LogLevel::Info, &format!("  Stderr: {}", stderr));
+            }
         } else {
             log(LogLevel::Error, &format!("  Error: {}", &self.name));
             log(LogLevel::Error, &format!("  Command: {}", &cmd));
@@ -319,6 +327,14 @@ pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig) {
     let output = cmd.output().expect("failed to execute process");
     if output.status.success() {
         log(LogLevel::Info, &format!("  Success: {}", &trgt.bin_path));
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.len() > 0 {
+            log(LogLevel::Info, &format!("  Stdout: {}", stdout));
+        }
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if stderr.len() > 0 {
+            log(LogLevel::Info, &format!("  Stderr: {}", stderr));
+        }
     } else {
         log(LogLevel::Error, &format!("  Error: {}", &trgt.bin_path));
         log(LogLevel::Warn, &format!("  Stdout: {}", String::from_utf8_lossy(&output.stdout)));
