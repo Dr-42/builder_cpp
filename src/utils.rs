@@ -3,15 +3,13 @@ use toml::Table;
 use colored::Colorize;
 
 //Log utils
-#[derive(PartialEq, PartialOrd)]
+#[derive(PartialEq, PartialOrd, Debug)]
 pub enum LogLevel {
     Info,
     Log,
     Warn,
     Error,
 }
-
-static mut LOG_LEVEL: LogLevel = LogLevel::Info;
 
 pub fn log(level: LogLevel, message: &str) {
     let level_str = match level {
@@ -20,16 +18,24 @@ pub fn log(level: LogLevel, message: &str) {
         LogLevel::Warn => "[WARN]".yellow(),
         LogLevel::Error => "[ERROR]".red(),
     };
-    unsafe{
-        if level >= LOG_LEVEL {
-        println!("{} {}", level_str, message);
+    let log_level = match std::env::var("BUILDER_CPP_LOG_LEVEL") {
+        Ok(val) => {
+            if val == "Info" {
+                LogLevel::Info
+            } else if val == "Log" {
+                LogLevel::Log
+            } else if val == "Warn" {
+                LogLevel::Warn
+            } else if val == "Error" {
+                LogLevel::Error
+            } else {
+                LogLevel::Log
+            }
         }
-    }
-}
-
-pub fn set_log_level(level: LogLevel) {
-    unsafe{
-        LOG_LEVEL = level;
+        Err(_) => LogLevel::Log,
+    };
+    if level >= log_level {
+        println!("{} {}", level_str, message);
     }
 }
 

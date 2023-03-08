@@ -34,22 +34,6 @@ fn main() {
         print_help();
     }
     for arg in args {
-        utils::set_log_level(utils::LogLevel::Log);
-        if arg.starts_with("-ll=") {
-            if arg == "-ll=Info" {
-                utils::set_log_level(utils::LogLevel::Info);
-            }
-            if arg == "-ll=Log" {
-                utils::set_log_level(utils::LogLevel::Log);
-            }
-            if arg == "-ll=Warn" {
-                utils::set_log_level(utils::LogLevel::Warn);
-            }
-            if arg == "-ll=Error" {
-                utils::set_log_level(utils::LogLevel::Error);
-            }
-        }
-
         if arg == "-c" {
             builder::clean(&build_config);
         }
@@ -83,12 +67,13 @@ fn main() {
 fn print_help() {
     utils::log(utils::LogLevel::Log, "Usage: $ builder_cpp [options]");
     utils::log(utils::LogLevel::Log, "Options:");
-    utils::log(utils::LogLevel::Log, "  -c\t\tClean the build directory");
-    utils::log(utils::LogLevel::Log, "  -r\t\tRun the executable");
-    utils::log(utils::LogLevel::Log, "  -b\t\tBuild the project");
-    utils::log(utils::LogLevel::Log, "  -rb\t\tClean, build and run the project");
-    utils::log(utils::LogLevel::Log, "  -ll=Log\tSet the log level to Log");
-    utils::log(utils::LogLevel::Log, "  -ll=Warn\tSet the log level to Warn");
-    utils::log(utils::LogLevel::Log, "  -ll=Error\tSet the log level to Error");
-    utils::log(utils::LogLevel::Log, "  -h\t\tShow this help message");
+    utils::log(utils::LogLevel::Log, "\t-c\t\tClean the build directory");
+    utils::log(utils::LogLevel::Log, "\t-r\t\tRun the executable");
+    utils::log(utils::LogLevel::Log, "\t-b\t\tBuild the project");
+    utils::log(utils::LogLevel::Log, "\t-rb\t\tClean, build and run the project");
+    utils::log(utils::LogLevel::Log, "\t-h\t\tShow this help message");
+    utils::log(utils::LogLevel::Log, "Environment variables:");
+    utils::log(utils::LogLevel::Log, "\tBUILDER_CPP_LOG_LEVEL");
+    utils::log(utils::LogLevel::Log, "\t\tSet the log level");
+    utils::log(utils::LogLevel::Log, "\t\tValid values are: Log, Info, Warn, Error");
 }
