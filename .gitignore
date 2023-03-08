@@ -1,4 +1,5 @@
 /target
 config_linux.toml
 config_win32.toml
+*.hash
 Nomu_Engine

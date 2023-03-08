@@ -5,6 +5,7 @@ use colored::Colorize;
 //Log utils
 #[derive(PartialEq, PartialOrd, Debug)]
 pub enum LogLevel {
+    Debug,
     Info,
     Log,
     Warn,
@@ -13,6 +14,7 @@ pub enum LogLevel {
 
 pub fn log(level: LogLevel, message: &str) {
     let level_str = match level {
+        LogLevel::Debug => "[DEBUG]".purple(),
         LogLevel::Info => "[INFO]".blue(),
         LogLevel::Log => "[LOG]".green(),
         LogLevel::Warn => "[WARN]".yellow(),
@@ -20,7 +22,9 @@ pub fn log(level: LogLevel, message: &str) {
     };
     let log_level = match std::env::var("BUILDER_CPP_LOG_LEVEL") {
         Ok(val) => {
-            if val == "Info" {
+            if val == "Debug" {
+                LogLevel::Debug
+            } else if val == "Info" {
                 LogLevel::Info
             } else if val == "Log" {
                 LogLevel::Log

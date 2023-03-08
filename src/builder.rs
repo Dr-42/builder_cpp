@@ -5,6 +5,7 @@ use std::process::Command;
 use std::fs;
 use itertools::Itertools;
 use std::collections::HashMap;
+use crate::hasher;
 
 //Represents a target
 pub struct Target<'a> {
@@ -13,6 +14,8 @@ pub struct Target<'a> {
     pub target_config: &'a TargetConfig,
     dependant_includes: HashMap<String, Vec<String>>,
     pub bin_path: String,
+    pub hash_file_path: String,
+    path_hash: HashMap<String, String>,
 }
 
 //Represents a source file
@@ -46,51 +49,62 @@ impl<'a> Target<'a> {
             bin_path.push_str(".so");
         }
 
+        #[cfg(target_os = "windows")]
+        let hash_file_path = format!("{}.win32.hash", &target_config.name);
+        #[cfg(target_os = "linux")]
+        let hash_file_path = format!("{}.linux.hash", &target_config.name);
+        
+        let path_hash = hasher::load_hashes_from_file(&hash_file_path);
+
         let mut target = Target {
             srcs,
             build_config,
             target_config,
             dependant_includes,
             bin_path,
+            path_hash,
+            hash_file_path,
         };
         target.get_srcs(&target_config.src, target_config);
         target
     }
 
-    pub fn build(&self) {
+    pub fn build(&mut self) {
         for src in &self.srcs {
-            if src.to_build() {
+            if src.to_build(&self.path_hash) {
+                hasher::save_hash(&src.path, &mut self.path_hash);
                 src.build(self.build_config, self.target_config);
             }
         }
-        self.link();
+        if self.to_link() {
+            self.link();
+        }
+        for src in &self.srcs {
+            for include in &src.dependant_includes {
+                hasher::save_hash(include, &mut self.path_hash);
+            }
+        }
+        hasher::save_hashes_to_file(&self.hash_file_path, &self.path_hash);
     }
 
-    pub fn to_link(&self) -> bool {
-        let to_link = false;
-
+    pub fn to_link(&mut self) -> bool {
         if !Path::new(&self.bin_path).exists() {
             log(LogLevel::Log, &format!("Linking: Binary does not exist {}", &self.bin_path));
             return true;
         }
         for src in &self.srcs {
-            let obj_name = &src.obj_name;
-            let obj_modification_time = fs::metadata(&obj_name).unwrap().modified().unwrap();
-            let bin_modification_time = fs::metadata(&self.bin_path).unwrap().modified().unwrap();
-            if obj_modification_time > bin_modification_time {
-                log(LogLevel::Log, "Linking: Binary is older than object file {obj_name}");
+            if hasher::is_file_changed(&src.obj_name, &self.path_hash) {
+                log(LogLevel::Log, &format!("Linking: Source since obj changed {}", &src.path));
+                log(LogLevel::Log, &format!("\t Obj changed {}", &src.obj_name));
+                hasher::save_hash(&src.obj_name, &mut self.path_hash);
                 return true;
             }
         }
-        to_link
+        log(LogLevel::Info, &format!("Linking: No changes since last build"));
+        false
     }
 
     pub fn link(&self) {
-        if !self.to_link() {
-            log(LogLevel::Info, "Linking: No need to link");
-            return;
-        }
-
         let mut objs = Vec::new();
         if !Path::new(&self.build_config.build_dir).exists() {
             fs::create_dir(&self.build_config.build_dir).unwrap();
@@ -126,6 +140,7 @@ impl<'a> Target<'a> {
             .expect("failed to execute process");
         if output.status.success() {
             log(LogLevel::Info, "  Linking successful");
+            hasher::save_hashes_to_file(&self.hash_file_path, &self.path_hash);
         } else {
             log(LogLevel::Error, "  Linking failed");
             log(LogLevel::Error, &format!("  Error: {}", String::from_utf8_lossy(&output.stderr)));
@@ -183,21 +198,20 @@ impl<'a> Target<'a> {
         let mut result = Vec::new();
         let include_substrings = self.get_include_substrings(path);
         if include_substrings.len() == 0 {
+            log(LogLevel::Debug, &format!("  {} depends on: {:?}", path, result));
             return result;
         }
         for include_substring in include_substrings {
-            if self.dependant_includes.contains_key(&include_substring) {
+            let dep_path = format!("{}/{}", &self.target_config.include_dir, &include_substring);
+            if self.dependant_includes.contains_key(&dep_path) {
                 continue;
             }
-            let mut include_path = String::new();
-            include_path.push_str(&self.target_config.include_dir);
-            include_path.push_str("/");
-            include_path.push_str(&include_substring);
-            result.append(&mut self.get_dependant_includes(&include_path));
-            result.push(include_path);
+            result.append(&mut self.get_dependant_includes(&dep_path));
+            result.push(dep_path);
             self.dependant_includes.insert(include_substring, result.clone());
         }
         let result = result.into_iter().unique().collect();
+        log(LogLevel::Debug, &format!("  {} depends on: {:?}", path, result));
         result
     }
 
@@ -231,21 +245,19 @@ impl Src {
         }
     }
 
-    fn to_build(&self) -> bool {
+    fn to_build(&self, path_hash: &HashMap<String, String>) -> bool {
         if !Path::new(&self.obj_name).exists() {
             log(LogLevel::Log, &format!("Building: Object file does not exist: {}", &self.obj_name));
             return true;
         }
-        let obj_modified = fs::metadata(&self.obj_name).unwrap().modified().unwrap();
-        let src_modified = fs::metadata(&self.path).unwrap().modified().unwrap();
-        if obj_modified < src_modified {
-            log(LogLevel::Log, &format!("Building: Object file is older than source file: {}", &self.obj_name));
+
+        if hasher::is_file_changed(&self.path, &path_hash) {
+            log(LogLevel::Log, &format!("Building: Source file has changed: {}", &self.path));
             return true;
         }
         for dependant_include in &self.dependant_includes {
-            let dependant_include_modified = fs::metadata(&dependant_include).unwrap().modified().unwrap();
-            if obj_modified < dependant_include_modified {
-                log(LogLevel::Log, &format!("Building: Object file is older than dependant include file: {}", &dependant_include));
+            if hasher::is_file_changed(&dependant_include.clone(), path_hash) {
+                log(LogLevel::Log, &format!("Building: Source file: {} depends on changed include file: {}", &self.path, &dependant_include));
                 return true;
             }
         }
@@ -312,9 +324,10 @@ pub fn clean(build_config: &BuildConfig) {
 
 pub fn build(build_config: &BuildConfig, targets: &Vec<TargetConfig>) {
     for target in targets {
-        let trgt = Target::new(build_config, target);
+        let mut trgt = Target::new(build_config, target);
         trgt.build();
     }
+    log(LogLevel::Info, "Build complete");
 }
 
 pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig) {
