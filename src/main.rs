@@ -1,10 +1,12 @@
 use builder_cpp::utils;
 use builder_cpp::builder;
 fn main() {
+    #[cfg(target_os = "linux")]
+    let (build_config, targets) = utils::parse_config("./config_linux.toml");
+    #[cfg(target_os = "windows")]
     let (build_config, targets) = utils::parse_config("./config_win32.toml");
-    println!("{:?}", build_config);
-    println!("{:?}", targets);
     for target in targets {
-        let _target = builder::Target::new(&build_config, &target);
+        let target = builder::Target::new(&build_config, &target);
+        target.build();
     }
 }

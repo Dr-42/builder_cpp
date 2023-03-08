@@ -1,13 +1,15 @@
 use crate::utils::{BuildConfig, TargetConfig, log, LogLevel};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::io::Read;
+use std::process::Command;
+use std::fs;
 use itertools::Itertools;
 use std::collections::HashMap;
 
 //Represents a target
 pub struct Target<'a> {
     pub srcs: Vec<Src>,
-    pub build_conifig: &'a BuildConfig,
+    pub build_config: &'a BuildConfig,
     pub target_config: &'a TargetConfig,
     dependant_includes: HashMap<String, Vec<String>>,
 }
@@ -27,7 +29,7 @@ impl<'a> Target<'a> {
         let dependant_includes: HashMap<String, Vec<String>> = HashMap::new();
         let mut target = Target {
             srcs,
-            build_conifig: build_config,
+            build_config,
             target_config,
             dependant_includes,
         };
@@ -35,6 +37,79 @@ impl<'a> Target<'a> {
         target
     }
 
+    pub fn build(&self) {
+        for src in &self.srcs {
+            if src.to_build(self.build_config) {
+                src.build(self.build_config, self.target_config);
+            }
+        }
+        self.link();
+    }
+
+    pub fn link(&self) {
+        let mut objs = Vec::new();
+        if !Path::new(&self.build_config.build_dir).exists() {
+            fs::create_dir(&self.build_config.build_dir).unwrap();
+        }
+        for src in &self.srcs {
+            objs.push(&src.obj_name);
+        }
+
+        let mut cmd = String::new();
+        cmd.push_str(&self.build_config.compiler);
+        cmd.push_str(" -o ");
+        cmd.push_str(&self.build_config.build_dir);
+        cmd.push_str("/");
+        cmd.push_str(&self.target_config.name);
+
+        #[cfg(target_os = "windows")]
+        if self.target_config.typ == "exe" {
+            cmd.push_str(".exe");
+        } else if self.target_config.typ == "dll" {
+            cmd.push_str(".dll");
+            cmd.push_str(" -shared ");
+        } else {
+            log(LogLevel::Error, "Invalid target type in target config");
+            log(LogLevel::Error, "  Valid types are: exe, dll");
+            std::process::exit(1);
+        }
+        #[cfg(target_os = "linux")]
+        if self.target_config.typ == "exe" {
+            cmd.push_str("");
+        } else if self.target_config.typ == "dll" {
+            cmd.push_str(".so");
+            cmd.push_str(" -shared ");
+        } else {
+            log(LogLevel::Error, "Invalid target type in target config");
+            log(LogLevel::Error, "  Valid types are: exe, so");
+            std::process::exit(1);
+        }
+        
+        for obj in objs {
+            cmd.push_str(" ");
+            cmd.push_str(obj);
+        }
+        cmd.push_str(" ");
+        cmd.push_str(&self.target_config.cflags);
+        cmd.push_str(" ");
+        cmd.push_str(&self.target_config.libs);
+
+
+        log(LogLevel::Info, &format!("Linking target: {}", &self.target_config.name));
+        log(LogLevel::Info, &format!("  Command: {}", &cmd));
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(&cmd)
+            .output()
+            .expect("failed to execute process");
+        if output.status.success() {
+            log(LogLevel::Info, "  Linking successful");
+        } else {
+            log(LogLevel::Error, "  Linking failed");
+            log(LogLevel::Error, &format!("  Error: {}", String::from_utf8_lossy(&output.stderr)));
+            std::process::exit(1);
+        }
+    }
     //returns a vector of source files in the given root path
     fn get_srcs(&mut self, root_path: &str, target_config: &'a TargetConfig) -> Vec<Src> {
         let root_dir = PathBuf::from(root_path);
@@ -58,12 +133,8 @@ impl<'a> Target<'a> {
     //adds a source file to the target
     fn add_src(&mut self, path: String) {
         let name = Target::get_src_name(&path);
-        let obj_name = self.get_src_obj_name(&name, self.build_conifig);
+        let obj_name = self.get_src_obj_name(&name, self.build_config);
         let dependant_includes = self.get_dependant_includes(&path);
-        log(LogLevel::Info, &format!("Added source file: {}", &name));
-        log(LogLevel::Info, &format!("  Source file path: {}", &path));
-        log(LogLevel::Info, &format!("  Object file name: {}", &obj_name));
-        log(LogLevel::Info, &format!("  Dependant includes: {:?}", &dependant_includes));
         self.srcs.push(Src::new(path, name, obj_name, dependant_includes));
     }
 
@@ -88,15 +159,12 @@ impl<'a> Target<'a> {
     //returns a vector of .h or .hpp files the given C/C++ depends on
     fn get_dependant_includes(&mut self, path: &str) -> Vec<String> {
         let mut result = Vec::new();
-        log(LogLevel::Log, &format!("Getting dependant includes for: {}", &path));
         let include_substrings = self.get_include_substrings(path);
-        log(LogLevel::Log, &format!("  Include substrings: {:?}", &include_substrings));
         if include_substrings.len() == 0 {
             return result;
         }
         for include_substring in include_substrings {
             if self.dependant_includes.contains_key(&include_substring) {
-                log(LogLevel::Log, &format!("  Found dependant includes in cache: {:?}", &self.dependant_includes.get(&include_substring).unwrap()));
                 continue;
             }
             let mut include_path = String::new();
@@ -138,6 +206,65 @@ impl Src {
             name,
             obj_name,
             dependant_includes,
+        }
+    }
+
+    fn to_build(&self, build_config: &BuildConfig) -> bool {
+        if !Path::new(&self.obj_name).exists() {
+            log(LogLevel::Info, &format!("Building: Object file does not exist: {}", &self.obj_name));
+            return true;
+        }
+        let obj_modified = fs::metadata(&self.obj_name).unwrap().modified().unwrap();
+        let src_modified = fs::metadata(&self.path).unwrap().modified().unwrap();
+        if obj_modified < src_modified {
+            log(LogLevel::Info, &format!("Building: Object file is older than source file: {}", &self.obj_name));
+            return true;
+        }
+        for dependant_include in &self.dependant_includes {
+            let dependant_include_modified = fs::metadata(&dependant_include).unwrap().modified().unwrap();
+            if obj_modified < dependant_include_modified {
+                log(LogLevel::Info, &format!("Building: Object file is older than dependant include file: {}", &dependant_include));
+                return true;
+            }
+        }
+        log(LogLevel::Info, &format!("Building: Object file is up to date: {}", &self.obj_name));
+        false
+    }
+
+    fn build(&self, build_config: &BuildConfig, target_config: &TargetConfig) {
+        if !Path::new(&build_config.obj_dir).exists() {
+            fs::create_dir(&build_config.obj_dir).unwrap();
+        }
+
+        let mut cmd = String::new();
+        cmd.push_str(&build_config.compiler);
+        cmd.push_str(" -c ");
+        cmd.push_str(&self.path);
+        cmd.push_str(" -o ");
+        cmd.push_str(&self.obj_name);
+        cmd.push_str(" -I");
+        cmd.push_str(&target_config.include_dir);
+        cmd.push_str(" ");
+        cmd.push_str(&target_config.cflags);
+
+        if target_config.typ == "dll" {
+            cmd.push_str(" -fPIC -shared");
+        }
+
+        log(LogLevel::Info, &format!("Building: {}", &self.name));
+        log(LogLevel::Info, &format!("  Command: {}", &cmd));
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(&cmd)
+            .output()
+            .expect("failed to execute process");
+        if output.status.success() {
+            log(LogLevel::Info, &format!("  Success: {}", &self.name));
+        } else {
+            log(LogLevel::Error, &format!("  Error: {}", &self.name));
+            log(LogLevel::Error, &format!("  Command: {}", &cmd));
+            log(LogLevel::Error, &format!("  Stdout: {}", String::from_utf8_lossy(&output.stdout)));
+            log(LogLevel::Error, &format!("  Stderr: {}", String::from_utf8_lossy(&output.stderr)));
         }
     }
 }
