@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use crate::utils::{BuildConfig, TargetConfig, log, LogLevel};
 use std::path::{Path, PathBuf};
 use std::io::Read;
@@ -7,6 +8,8 @@ use itertools::Itertools;
 use std::collections::HashMap;
 use crate::hasher;
 use rayon::prelude::*;
+use indicatif::{ProgressBar, ProgressStyle};
+use colored::Colorize;
 
 //Represents a target
 pub struct Target<'a> {
@@ -73,21 +76,43 @@ impl<'a> Target<'a> {
     pub fn build(&mut self) {
         let mut to_link : bool = false;
         let mut link_causer : Vec<&str> = Vec::new();
+        let mut srcs_needed = 0;
+        let total_srcs = self.srcs.len();
         for src in &self.srcs {
-            if src.to_build(&self.path_hash) {
+            let (to_build, _) = src.to_build(&self.path_hash);
+            if to_build {
                 hasher::save_hash(&src.path, &mut self.path_hash);
                 to_link = true;
                 link_causer.push(&src.path);
+                srcs_needed += 1;
             }
         }
         if to_link {
+            log(LogLevel::Log, &format!("Compiling Target: {}", &self.target_config.name));
+            log(LogLevel::Log, &format!("\t {} of {} source files have to be compiled", srcs_needed, total_srcs));
             if !Path::new(&self.build_config.obj_dir).exists() {
                 fs::create_dir(&self.build_config.obj_dir).unwrap();
             }
         }
+        let progress_bar = Arc::new(Mutex::new(ProgressBar::new(srcs_needed as u64)
+        ));
+
+        let num_complete = Arc::new(Mutex::new(0));
         self.srcs.par_iter().for_each(|src| {
-            if src.to_build(&self.path_hash) {
+            let (to_build, _message) = src.to_build(&self.path_hash);
+            if to_build {
                 src.build(self.build_config, self.target_config);
+                let log_level = std::env::var("BUILDER_CPP_LOG_LEVEL").unwrap_or("".to_string());
+                if !(log_level == "Info" || log_level == "Debug"){
+                    let mut num_complete = num_complete.lock().unwrap();
+                    *num_complete += 1;
+                    let progress_bar = progress_bar.lock().unwrap();
+                    let template = format!("    {}{}", "Compiling :".cyan(), "[{bar:40.white/white}] {pos}/{len} ({percent}%) {msg}[{elapsed_precise}] ");
+                    progress_bar.set_style(ProgressStyle::with_template(&template)
+                    .unwrap()
+                    .progress_chars("=>-"));
+                    progress_bar.inc(1);
+                }
             }
         });
         if to_link {
@@ -247,27 +272,24 @@ impl Src {
         }
     }
 
-    fn to_build(&self, path_hash: &HashMap<String, String>) -> bool {
+    fn to_build(&self, path_hash: &HashMap<String, String>) -> (bool, String) {
         if !Path::new(&self.obj_name).exists() {
-            log(LogLevel::Log, &format!("Building: {}", &self.path));
-            log(LogLevel::Info, &format!("\tObject file does not exist: {}", &self.obj_name));
-            return true;
+            let result = (true, format!("\tObject file does not exist: {}", &self.obj_name));
+            return result;
         }
 
         if hasher::is_file_changed(&self.path, &path_hash) {
-            log(LogLevel::Log, &format!("Building: {}", &self.path));
-            log(LogLevel::Info, &format!("\tSource file has changed: {}", &self.path));
-            return true;
+            let result =  (true, format!("\tSource file has changed: {}", &self.path));
+            return result;
         }
         for dependant_include in &self.dependant_includes {
             if hasher::is_file_changed(&dependant_include.clone(), path_hash) {
-                log(LogLevel::Log, &format!("Building: {}", &self.path));
-                log(LogLevel::Info, &format!("\tSource file: {} depends on changed include file: {}", &self.path, &dependant_include));
-                return true;
+                let result = (true, format!("\tSource file: {} depends on changed include file: {}", &self.path, &dependant_include));
+                return result;
             }
         }
-        log(LogLevel::Info, &format!("BuildInfo: Source file: {} does not need to be built", &self.path));
-        false
+        let result = (false, format!("Source file: {} does not need to be built", &self.path));
+        result
     }
 
     fn build(&self, build_config: &BuildConfig, target_config: &TargetConfig) {

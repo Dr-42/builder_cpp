@@ -75,5 +75,5 @@ fn print_help() {
     utils::log(utils::LogLevel::Log, "Environment variables:");
     utils::log(utils::LogLevel::Log, "\tBUILDER_CPP_LOG_LEVEL");
     utils::log(utils::LogLevel::Log, "\t\tSet the log level");
-    utils::log(utils::LogLevel::Log, "\t\tValid values are: Log, Info, Warn, Error");
+    utils::log(utils::LogLevel::Log, "\t\tValid values are: Debug, Log, Info, Warn, Error");
 }
