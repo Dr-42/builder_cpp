@@ -303,7 +303,7 @@ impl Src {
     }
 }
 
-pub fn clean(build_config: &BuildConfig) {
+pub fn clean(build_config: &BuildConfig, targets: &Vec<TargetConfig>) {
     if Path::new(&build_config.obj_dir).exists() {
         fs::remove_dir_all(&build_config.obj_dir).unwrap();
         log(LogLevel::Info, &format!("Cleaning: {}", &build_config.obj_dir));
@@ -311,6 +311,18 @@ pub fn clean(build_config: &BuildConfig) {
     if Path::new(&build_config.build_dir).exists() {
         fs::remove_dir_all(&build_config.build_dir).unwrap();
         log(LogLevel::Info, &format!("Cleaning: {}", &build_config.build_dir));
+    }
+    for target in targets {
+        //remove hashes
+        #[cfg(target_os = "windows")]
+        let hash_path = format!("{}.win32.hash", &target.name);
+        #[cfg(target_os = "linux")]
+        let hash_path = format!("{}.linux.hash", &target.name);
+
+        if Path::new(&hash_path).exists() {
+            fs::remove_file(&hash_path).unwrap();
+            log(LogLevel::Info, &format!("Cleaning: {}", &hash_path));
+        }
     }
 }
 
