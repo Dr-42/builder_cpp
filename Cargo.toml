@@ -2,6 +2,11 @@
 name = "builder_cpp"
 version = "0.1.0"
 edition = "2021"
+description = "A simple build tool for building C and C++ applications"
+license = "MIT"
+homepage = "https://github.com/Dr-42/builder_cpp"
+repository = "https://github.com/Dr-42/builder_cpp"
+keywords = ["build", "build-tool", "C++", "toml", "C"]
 
 [dependencies]
 toml = "0.7.2"
