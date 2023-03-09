@@ -6,9 +6,6 @@ use std::collections::HashMap;
 use md5;
 
 fn hash_u8(v: &[u8]) -> String {
-    if v.len() > 200 {
-        return hash_u8(&v[..200]);
-    }
     let digest = md5::compute(v);
     return format!("{:x}", digest);
 }

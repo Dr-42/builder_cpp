@@ -239,21 +239,24 @@ impl Src {
 
     fn to_build(&self, path_hash: &HashMap<String, String>) -> bool {
         if !Path::new(&self.obj_name).exists() {
-            log(LogLevel::Log, &format!("Building: Object file does not exist: {}", &self.obj_name));
+            log(LogLevel::Log, &format!("Building: {}", &self.path));
+            log(LogLevel::Info, &format!("\tObject file does not exist: {}", &self.obj_name));
             return true;
         }
 
         if hasher::is_file_changed(&self.path, &path_hash) {
-            log(LogLevel::Log, &format!("Building: Source file has changed: {}", &self.path));
+            log(LogLevel::Log, &format!("Building: {}", &self.path));
+            log(LogLevel::Info, &format!("\tSource file has changed: {}", &self.path));
             return true;
         }
         for dependant_include in &self.dependant_includes {
             if hasher::is_file_changed(&dependant_include.clone(), path_hash) {
-                log(LogLevel::Log, &format!("Building: Source file: {} depends on changed include file: {}", &self.path, &dependant_include));
+                log(LogLevel::Log, &format!("Building: {}", &self.path));
+                log(LogLevel::Info, &format!("\tSource file: {} depends on changed include file: {}", &self.path, &dependant_include));
                 return true;
             }
         }
-        log(LogLevel::Info, &format!("Building: Source file: {} does not need to be built", &self.path));
+        log(LogLevel::Info, &format!("BuildInfo: Source file: {} does not need to be built", &self.path));
         false
     }
 
@@ -299,6 +302,7 @@ impl Src {
             log(LogLevel::Error, &format!("  Command: {}", &cmd));
             log(LogLevel::Error, &format!("  Stdout: {}", String::from_utf8_lossy(&output.stdout)));
             log(LogLevel::Error, &format!("  Stderr: {}", String::from_utf8_lossy(&output.stderr)));
+            std::process::exit(1);
         }
     }
 }
@@ -356,5 +360,6 @@ pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig) {
         log(LogLevel::Error, &format!("  Error: {}", &trgt.bin_path));
         log(LogLevel::Warn, &format!("  Stdout: {}", String::from_utf8_lossy(&output.stdout)));
         log(LogLevel::Error, &format!("  Stderr: {}", String::from_utf8_lossy(&output.stderr)));
+        std::process::exit(1);
     }
 }
