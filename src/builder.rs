@@ -6,6 +6,7 @@ use std::fs;
 use itertools::Itertools;
 use std::collections::HashMap;
 use crate::hasher;
+use rayon::prelude::*;
 
 //Represents a target
 pub struct Target<'a> {
@@ -75,11 +76,20 @@ impl<'a> Target<'a> {
         for src in &self.srcs {
             if src.to_build(&self.path_hash) {
                 hasher::save_hash(&src.path, &mut self.path_hash);
-                src.build(self.build_config, self.target_config);
                 to_link = true;
                 link_causer.push(&src.path);
             }
         }
+        if to_link {
+            if !Path::new(&self.build_config.obj_dir).exists() {
+                fs::create_dir(&self.build_config.obj_dir).unwrap();
+            }
+        }
+        self.srcs.par_iter().for_each(|src| {
+            if src.to_build(&self.path_hash) {
+                src.build(self.build_config, self.target_config);
+            }
+        });
         if to_link {
             log(LogLevel::Log, "Linking: Since source files were compiled");
             for src in link_causer {
@@ -112,7 +122,7 @@ impl<'a> Target<'a> {
         if self.target_config.typ == "dll" {
             cmd.push_str(" -shared ");
         }
-        
+
         for obj in objs {
             cmd.push_str(" ");
             cmd.push_str(obj);
@@ -261,10 +271,6 @@ impl Src {
     }
 
     fn build(&self, build_config: &BuildConfig, target_config: &TargetConfig) {
-        if !Path::new(&build_config.obj_dir).exists() {
-            fs::create_dir(&build_config.obj_dir).unwrap();
-        }
-
         let mut cmd = String::new();
         cmd.push_str(&build_config.compiler);
         cmd.push_str(" -c ");

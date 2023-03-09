@@ -4,8 +4,12 @@ A simple build tool for building C and C++ applications
 
 The tool is still in development.
 
-##Usage
+## Usage
 Write a config_win32.toml for windows and config_linux.toml for linux
+
+## Features
+
+[x] Multithreaded
 
 Sample file
 ```
