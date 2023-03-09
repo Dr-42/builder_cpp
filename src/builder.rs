@@ -70,38 +70,30 @@ impl<'a> Target<'a> {
     }
 
     pub fn build(&mut self) {
+        let mut to_link : bool = false;
+        let mut link_causer : Vec<&str> = Vec::new();
         for src in &self.srcs {
             if src.to_build(&self.path_hash) {
                 hasher::save_hash(&src.path, &mut self.path_hash);
                 src.build(self.build_config, self.target_config);
+                to_link = true;
+                link_causer.push(&src.path);
             }
         }
-        if self.to_link() {
+        if to_link {
+            log(LogLevel::Log, "Linking: Since source files were compiled");
+            for src in link_causer {
+                log(LogLevel::Info, &format!("\tFile: {}", &src));
+            }
+            for src in &self.srcs {
+                for include in &src.dependant_includes {
+                    hasher::save_hash(include, &mut self.path_hash);
+                }
+            }
+            hasher::save_hashes_to_file(&self.hash_file_path, &self.path_hash);
+            log(LogLevel::Debug, &format!("Hashes: {:?}", &self.path_hash));
             self.link();
         }
-        for src in &self.srcs {
-            for include in &src.dependant_includes {
-                hasher::save_hash(include, &mut self.path_hash);
-            }
-        }
-        hasher::save_hashes_to_file(&self.hash_file_path, &self.path_hash);
-    }
-
-    pub fn to_link(&mut self) -> bool {
-        if !Path::new(&self.bin_path).exists() {
-            log(LogLevel::Log, &format!("Linking: Binary does not exist {}", &self.bin_path));
-            return true;
-        }
-        for src in &self.srcs {
-            if hasher::is_file_changed(&src.obj_name, &self.path_hash) {
-                log(LogLevel::Log, &format!("Linking: Source since obj changed {}", &src.path));
-                log(LogLevel::Log, &format!("\t Obj changed {}", &src.obj_name));
-                hasher::save_hash(&src.obj_name, &mut self.path_hash);
-                return true;
-            }
-        }
-        log(LogLevel::Info, &format!("Linking: No changes since last build"));
-        false
     }
 
     pub fn link(&self) {
@@ -261,7 +253,7 @@ impl Src {
                 return true;
             }
         }
-        log(LogLevel::Info, &format!("Building: Object file is up to date: {}", &self.obj_name));
+        log(LogLevel::Info, &format!("Building: Source file: {} does not need to be built", &self.path));
         false
     }
 
