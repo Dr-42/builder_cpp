@@ -1,4 +1,4 @@
-# CPP_BUILD
+# BUILDER_CPP
 
 A simple build tool for building C and C++ applications
 
@@ -10,6 +10,7 @@ Write a config_win32.toml for windows and config_linux.toml for linux
 ## Features
 
 [x] Multithreaded
+[x] Can generate compile_commnds.json
 
 Sample file
 ```
