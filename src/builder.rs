@@ -1,9 +1,9 @@
+use std::fs;
 use std::sync::{Arc, Mutex};
 use crate::utils::{BuildConfig, TargetConfig, log, LogLevel};
 use std::path::{Path, PathBuf};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::process::Command;
-use std::fs;
 use itertools::Itertools;
 use std::collections::HashMap;
 use crate::hasher;
@@ -73,11 +73,12 @@ impl<'a> Target<'a> {
         target
     }
 
-    pub fn build(&mut self) {
+    pub fn build(&mut self, gen_cc: bool ) {
         let mut to_link : bool = false;
         let mut link_causer : Vec<&str> = Vec::new();
         let mut srcs_needed = 0;
         let total_srcs = self.srcs.len();
+        let mut src_ccs = Vec::new();
         for src in &self.srcs {
             let (to_build, _) = src.to_build(&self.path_hash);
             if to_build {
@@ -86,12 +87,29 @@ impl<'a> Target<'a> {
                 link_causer.push(&src.path);
                 srcs_needed += 1;
             }
+            if gen_cc {
+                src_ccs.push(self.gen_cc(&src));
+            }
+        }
+        if gen_cc {
+            let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .append(true)
+            .open("./compile_commands.json")
+            .unwrap();
+            for src_cc in src_ccs {
+                if let Err(e) = writeln!(file, "{},", src_cc) {
+                    eprintln!("Couldn't write to file: {}", e);
+                }
+            }
         }
         if to_link {
             log(LogLevel::Log, &format!("Compiling Target: {}", &self.target_config.name));
             log(LogLevel::Log, &format!("\t {} of {} source files have to be compiled", srcs_needed, total_srcs));
             if !Path::new(&self.build_config.obj_dir).exists() {
-                fs::create_dir(&self.build_config.obj_dir).unwrap();
+                fs::create_dir(&self.build_config.obj_dir).unwrap_or_else(|why| {
+                    log(LogLevel::Error, &format!("Couldn't create obj dir: {}", why));
+                });
             }
         }
         let progress_bar = Arc::new(Mutex::new(ProgressBar::new(srcs_needed as u64)
@@ -174,6 +192,80 @@ impl<'a> Target<'a> {
             std::process::exit(1);
         }
     }
+
+    //-----------------
+    //  "command": "c++ -c -o ./obj_lin/app.o -I./Engine/src/include -g -Wall -Wunused -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/harfbuzz -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include -I/usr/include/sysprof-4 -pthread -std=c++17 -fPIC ./Engine/src/core/app.cpp",
+    //  "directory": "/mnt/f/C++/Nomu_Engine",
+    //  "file": "/mnt/f/C++/Nomu_Engine/Engine/src/core/app.cpp"
+    fn gen_cc(&self, src: &Src) -> String {
+        let mut cc = String::new();
+        cc.push_str("{\n");
+        cc.push_str("\t\"command\": \"c++ -c -o ");
+        cc.push_str(&src.obj_name);
+        cc.push_str(" -I");
+        cc.push_str(&self.target_config.include_dir);
+        cc.push_str(" ");
+        let cflags = &self.target_config.cflags;
+        //Extract the -I mentions
+        let include_mentions = cflags
+            .split_whitespace()
+            .filter(|s| s.starts_with("-I"));
+        for include_mention in include_mentions {
+            cc.push_str(include_mention);
+            cc.push_str(" ");
+        }
+        //Expand the pkg-config mentiiions in cflags
+        //Extract the pkg-config mentions
+        //get strings which are inside ``
+        let pkg_mentions = cflags.split('`').filter(|s| s.contains("pkg-config")).collect::<Vec<&str>>();
+        for pkg in pkg_mentions {
+            let pkg_output = Command::new("sh")
+                .arg("-c")
+                .arg(pkg)
+                .output()
+                .expect("failed to execute process");
+            cc.push_str(&String::from_utf8_lossy(&pkg_output.stdout));
+            //trim the end newline
+            cc.pop();
+        }
+        //Add the rest of the cflags
+        let flags_left = cflags.split("`").
+        filter(|s| !s.contains("pkg-config"))
+        .collect::<Vec<&str>>();
+        let flags_left = flags_left.join(" ").split_whitespace()
+        .filter(|s| !s.starts_with("-I")).collect::<Vec<&str>>().join(" ");
+        cc.push_str(&flags_left);
+        cc.push_str(" ");
+
+        #[cfg(target_os = "linux")]
+        if self.target_config.typ == "dll" {
+            cc.push_str("-fPIC ");
+        }
+
+        cc.push_str(&src.path);
+        cc.push_str("\",\n");
+        let mut dirent = String::new();
+        dirent.push_str("\t\"directory\": \"");
+        dirent.push_str(&std::env::current_dir().unwrap().to_str().unwrap().replace("\\", "/"));
+        dirent.push_str("\",\n");
+        let dirent = dirent.replace("/", "\\\\").replace("\\\\.\\\\", "\\\\");
+        cc.push_str(&dirent);
+        let mut fileent = String::new();
+        fileent.push_str("\t\"file\": \"");
+        fileent.push_str(&std::env::current_dir().unwrap().to_str().unwrap().replace("\\", "/"));
+        fileent.push_str("/");
+        fileent.push_str(&src.path);
+        fileent.push_str("\"");
+        let fileent = fileent.replace("/", "\\\\").replace("\\\\.\\\\", "\\\\");
+
+        cc.push_str(&fileent);
+
+        cc.push_str("\n}");
+        #[cfg(target_os = "linux")]
+        return cc.replace("\\\\", "/");
+        #[cfg(target_os = "windows")]
+        return cc;
+    }
     //returns a vector of source files in the given root path
     fn get_srcs(&mut self, root_path: &str, target_config: &'a TargetConfig) -> Vec<Src> {
         let root_dir = PathBuf::from(root_path);
@@ -223,7 +315,10 @@ impl<'a> Target<'a> {
     //returns a vector of .h or .hpp files the given C/C++ depends on
     fn get_dependant_includes(&mut self, path: &str) -> Vec<String> {
         let mut result = Vec::new();
-        let include_substrings = self.get_include_substrings(path);
+        let include_substrings = self.get_include_substrings(path).unwrap_or_else(|| {
+            log(LogLevel::Error, &format!("Failed to get include substrings for file: {}", path));
+            std::process::exit(1);
+        });
         if include_substrings.len() == 0 {
             log(LogLevel::Debug, &format!("  {} depends on: {:?}", path, result));
             return result;
@@ -244,8 +339,12 @@ impl<'a> Target<'a> {
 
     //returns a vector of strings that are the include substrings
     //of the given C/C++ file as variaible path
-    fn get_include_substrings(&self, path: &str) -> Vec<String> {
-        let mut file = std::fs::File::open(path).unwrap();
+    fn get_include_substrings(&self, path: &str) -> Option<Vec<String>> {
+        let file = std::fs::File::open(path);
+        if file.is_err() {
+            return None;
+        }
+        let mut file = file.unwrap();
         let mut buf = String::new();
         file.read_to_string(&mut buf).unwrap();
 
@@ -257,7 +356,7 @@ impl<'a> Target<'a> {
                 include_substrings.push(include_path);
             }
         }
-        include_substrings
+        Some(include_substrings)
     }
 }
 
@@ -337,12 +436,10 @@ impl Src {
 
 pub fn clean(build_config: &BuildConfig, targets: &Vec<TargetConfig>) {
     if Path::new(&build_config.obj_dir).exists() {
-        fs::remove_dir_all(&build_config.obj_dir).unwrap();
+        fs::remove_dir_all(&build_config.obj_dir).unwrap_or_else(|why| {
+            log(LogLevel::Error, &format!("Could not remove object directory: {}", why));
+        });
         log(LogLevel::Info, &format!("Cleaning: {}", &build_config.obj_dir));
-    }
-    if Path::new(&build_config.build_dir).exists() {
-        fs::remove_dir_all(&build_config.build_dir).unwrap();
-        log(LogLevel::Info, &format!("Cleaning: {}", &build_config.build_dir));
     }
     for target in targets {
         //remove hashes
@@ -352,16 +449,70 @@ pub fn clean(build_config: &BuildConfig, targets: &Vec<TargetConfig>) {
         let hash_path = format!("{}.linux.hash", &target.name);
 
         if Path::new(&hash_path).exists() {
-            fs::remove_file(&hash_path).unwrap();
+            fs::remove_file(&hash_path).unwrap_or_else(|why| {
+                log(LogLevel::Error, &format!("Could not remove hash file: {}", why));
+            });
             log(LogLevel::Info, &format!("Cleaning: {}", &hash_path));
+        }
+        if Path::new(&build_config.build_dir).exists() {
+            let mut bin_name = String::new();
+            bin_name.push_str(&build_config.build_dir);
+            bin_name.push_str(&target.name);
+            #[cfg(target_os = "windows")]
+            if target.typ == "exe" {
+                bin_name.push_str(".exe");
+            } else if target.typ == "dll" {
+                bin_name.push_str(".dll");
+            }
+            #[cfg(target_os = "linux")]
+            if target.typ == "exe" {
+                bin_name.push_str("");
+            } else if target.typ == "dll" {
+                bin_name.push_str(".so");
+            }
+            if Path::new(&bin_name).exists() {
+                fs::remove_file(&bin_name).unwrap_or_else(|why| {
+                    log(LogLevel::Error, &format!("Could not remove binary file: {}", why));
+                });
+                log(LogLevel::Info, &format!("Cleaning: {}", &bin_name));
+            }
         }
     }
 }
 
-pub fn build(build_config: &BuildConfig, targets: &Vec<TargetConfig>) {
+pub fn build(build_config: &BuildConfig, targets: &Vec<TargetConfig>, gen_cc: bool) {
+    if gen_cc {
+        let mut cc_file = fs::OpenOptions::new()
+            .write(true)
+            .append(true)
+            .open("compile_commands.json")
+            .unwrap_or_else(|why| {
+                log(LogLevel::Error, &format!("Could not open cc file: {}", why));
+                std::process::exit(1);
+            });
+        cc_file.write_all(b"[").unwrap_or_else(|why| {
+            log(LogLevel::Error, &format!("Could not write to cc file: {}", why));
+            std::process::exit(1);
+        });
+    }
     for target in targets {
         let mut trgt = Target::new(build_config, target);
-        trgt.build();
+        trgt.build(gen_cc);
+    }
+    if gen_cc {
+        let mut cc_file = fs::OpenOptions::new()
+            .write(true)
+            .read(true)
+            .append(true)
+            .open("compile_commands.json")
+            .unwrap_or_else(|why| {
+                log(LogLevel::Error, &format!("Could not open cc file: {}", why));
+                std::process::exit(1);
+            });
+        cc_file.write_all(b"]").unwrap_or_else(|why| {
+            log(LogLevel::Error, &format!("Could not write to cc file: {}", why));
+            std::process::exit(1);
+        });
     }
     log(LogLevel::Info, "Build complete");
 }

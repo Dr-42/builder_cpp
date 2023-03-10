@@ -63,28 +63,69 @@ pub struct TargetConfig {
 
 pub fn parse_config(path: &str) -> (BuildConfig, Vec<TargetConfig>) {
     //open toml file and parse it into a string
-    let mut file = File::open(path).unwrap();
+    let mut file = File::open(path).unwrap_or_else(|_| {
+        log(LogLevel::Error, &format!("Could not open config file: {}", path));
+        std::process::exit(1);
+    });
     let mut contents = String::new();
-    file.read_to_string(&mut contents).unwrap();
-    let config = contents.parse::<Table>().unwrap();
+    file.read_to_string(&mut contents).unwrap_or_else(|_| {
+        log(LogLevel::Error, &format!("Could not read config file: {}", path));
+        std::process::exit(1);
+    });
+    let config = contents.parse::<Table>().unwrap_or_else(|e| {
+        log(LogLevel::Error, &format!("Could not parse config file: {}", path));
+        log(LogLevel::Error, &format!("Error: {}", e));
+        std::process::exit(1);
+    });
     
     //parse the string into a struct
     let build_config = BuildConfig {
-        compiler: config["build"]["compiler"].as_str().unwrap().to_string(),
-        build_dir: config["build"]["build_dir"].as_str().unwrap().to_string(),
-        obj_dir: config["build"]["obj_dir"].as_str().unwrap().to_string(),
+        compiler: config["build"]["compiler"].as_str().unwrap_or_else(|| {
+            log(LogLevel::Error, "Could not find compiler in config file");
+            std::process::exit(1);
+        }).to_string(),
+        build_dir: config["build"]["build_dir"].as_str().unwrap_or_else(|| {
+            log(LogLevel::Error, "Could not find build_dir in config file");
+            std::process::exit(1);
+        }).to_string(),
+        obj_dir: config["build"]["obj_dir"].as_str().unwrap_or_else(|| {
+            log(LogLevel::Error, "Could not find obj_dir in config file");
+            std::process::exit(1);
+        }).to_string(),
     };
 
     let mut targets = Vec::new();
 
-    for target in config["targets"].as_array().unwrap() {
+    for target in config["targets"].as_array().unwrap_or_else(|| {
+        log(LogLevel::Error, "Could not find targets in config file");
+        std::process::exit(1);
+    })
+    {
         let target_config = TargetConfig {
-            name: target["name"].as_str().unwrap().to_string(),
-            src: target["src"].as_str().unwrap().to_string(),
-            include_dir: target["include_dir"].as_str().unwrap().to_string(),
-            typ: target["type"].as_str().unwrap().to_string(),
-            cflags: target["cflags"].as_str().unwrap().to_string(),
-            libs: target["libs"].as_str().unwrap().to_string(),
+            name: target["name"].as_str().unwrap_or_else(|| {
+                log(LogLevel::Error, "Could not find name in confiig file");
+                std::process::exit(1);
+            }).to_string(),
+            src: target["src"].as_str().unwrap_or_else(|| {
+                log(LogLevel::Error, "Could not find src in confiig file");
+                std::process::exit(1);
+            }).to_string(),
+            include_dir: target["include_dir"].as_str().unwrap_or_else(|| {
+                log(LogLevel::Error, "Could not find include_dir in confiig file");
+                std::process::exit(1);
+            }).to_string(),
+            typ: target["type"].as_str().unwrap_or_else(|| {
+                log(LogLevel::Error, "Could not find type in confiig file");
+                std::process::exit(1);
+            }).to_string(),
+            cflags: target["cflags"].as_str().unwrap_or_else(|| {
+                log(LogLevel::Error, "Could not find cflags in confiig file");
+                std::process::exit(1);
+            }).to_string(),
+            libs: target["libs"].as_str().unwrap_or_else(|| {
+                log(LogLevel::Error, "Could not find libs in confiig file");
+                std::process::exit(1);
+            }).to_string(),
         };
         targets.push(target_config);
     }

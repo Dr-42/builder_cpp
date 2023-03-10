@@ -33,6 +33,17 @@ fn main() {
     if args.len() == 1 {
         print_help();
     }
+    let mut gen_cc = false;
+    if args.contains(&"--gen-cc".to_string()) {
+        gen_cc = true;
+        use std::fs;
+        if !Path::new("./compile_commands.json").exists() {
+            fs::File::create(Path::new("./compile_commands.json")).unwrap();
+        } else {
+            fs::remove_file(Path::new("./compile_commands.json")).unwrap();
+            fs::File::create(Path::new("./compile_commands.json")).unwrap();
+        }
+    }
     for arg in args {
         if arg == "-c" {
             builder::clean(&build_config, &targets);
@@ -44,18 +55,18 @@ fn main() {
             }
             let trgt = Target::new(&build_config, exe_target.unwrap());
             if !Path::new(&trgt.bin_path).exists() {
-                builder::build(&build_config, &targets);
+                builder::build(&build_config, &targets, gen_cc);
             }
-            builder::build(&build_config, &targets);
+            builder::build(&build_config, &targets, gen_cc);
             builder::run(&build_config, &exe_target.unwrap());
         }
         if arg == "-b" {
-            builder::build(&build_config, &targets);
+            builder::build(&build_config, &targets, gen_cc);
         }
 
         if arg == "-rb" {
             builder::clean(&build_config, &targets);
-            builder::build(&build_config, &targets);
+            builder::build(&build_config, &targets, gen_cc);
             builder::run(&build_config,&exe_target.unwrap());
         }
         if arg == "-h" {
@@ -72,6 +83,7 @@ fn print_help() {
     utils::log(utils::LogLevel::Log, "\t-b\t\tBuild the project");
     utils::log(utils::LogLevel::Log, "\t-rb\t\tClean, build and run the project");
     utils::log(utils::LogLevel::Log, "\t-h\t\tShow this help message");
+    utils::log(utils::LogLevel::Log, "\t--gen-cc\tGenerate compile_commands.json");
     utils::log(utils::LogLevel::Log, "Environment variables:");
     utils::log(utils::LogLevel::Log, "\tBUILDER_CPP_LOG_LEVEL");
     utils::log(utils::LogLevel::Log, "\t\tSet the log level");
