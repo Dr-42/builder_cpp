@@ -1,5 +1,5 @@
 use std::{fs::File, io::Read};
-use toml::Table;
+use toml::{Table, Value};
 use colored::Colorize;
 
 //Log utils
@@ -59,6 +59,7 @@ pub struct TargetConfig {
     pub typ: String,
     pub cflags: String,
     pub libs: String,
+    pub deps: Vec<String>,
 }
 
 pub fn parse_config(path: &str) -> (BuildConfig, Vec<TargetConfig>) {
@@ -101,6 +102,24 @@ pub fn parse_config(path: &str) -> (BuildConfig, Vec<TargetConfig>) {
         std::process::exit(1);
     })
     {
+        let mut deps: Vec<String> = Vec::new();
+
+        let empty_value = Value::Array(Vec::new());
+        //deps is optional
+        let deps_toml = target.get("deps").unwrap_or_else(|| {
+            &empty_value
+        });
+        for dep in deps_toml.as_array().unwrap_or_else(|| {
+            log(LogLevel::Error, "Deps is not an array");
+            std::process::exit(1);
+        })
+        {
+            deps.push(dep.as_str().unwrap_or_else(|| {
+                log(LogLevel::Error, "Deps are a vec of strings");
+                std::process::exit(1);
+            }).to_string());
+        }
+            
         let target_config = TargetConfig {
             name: target["name"].as_str().unwrap_or_else(|| {
                 log(LogLevel::Error, "Could not find name in confiig file");
@@ -126,6 +145,7 @@ pub fn parse_config(path: &str) -> (BuildConfig, Vec<TargetConfig>) {
                 log(LogLevel::Error, "Could not find libs in confiig file");
                 std::process::exit(1);
             }).to_string(),
+            deps,
         };
         targets.push(target_config);
     }
