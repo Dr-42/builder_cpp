@@ -1,6 +1,6 @@
 use std::fs;
 use std::sync::{Arc, Mutex};
-use crate::utils::{BuildConfig, TargetConfig, log, LogLevel};
+use crate::utils::{BuildConfig, TargetConfig, log, LogLevel, self};
 use std::path::{Path, PathBuf};
 use std::io::{Read, Write};
 use std::process::Command;
@@ -67,6 +67,36 @@ impl<'a> Target<'a> {
                     dependant_libs.push(Target::new(build_config, target, targets));
                 }
             }
+        }
+        for dep_lib in &dependant_libs {
+            if dep_lib.target_config.typ != "dll" {
+                utils::log(LogLevel::Error, "Can add only dlls as dependant libs");
+                utils::log(LogLevel::Error, &format!("Target: {} is not a dll", dep_lib.target_config.name));
+                utils::log(LogLevel::Error, &format!("Target: {} is a {}", dep_lib.target_config.name, dep_lib.target_config.typ));
+                std::process::exit(1);
+            }
+            else {
+                utils::log(LogLevel::Info, &format!("Adding dependant lib: {}", dep_lib.target_config.name));
+            }
+            if !dep_lib.target_config.name.starts_with("lib") {
+                utils::log(LogLevel::Error, "Dependant lib name must start with lib");
+                utils::log(LogLevel::Error, &format!("Target: {} does not start with lib", dep_lib.target_config.name));
+                std::process::exit(1);
+            } else {
+                utils::log(LogLevel::Debug, &format!("Dependant lib: {} starts with lib", dep_lib.target_config.name));
+            }
+        }
+        if target_config.deps.len() != dependant_libs.len() {
+            utils::log(LogLevel::Error, "Dependant libs not found");
+            utils::log(LogLevel::Error, &format!("Dependant libs: {:?}", target_config.deps));
+            utils::log(LogLevel::Error, &format!("Found libs: {:?}", targets.iter().map(|x| {
+                if x.typ == "dll" {
+                    x.name.clone()
+                } else {
+                    "".to_string()
+                }
+            }).collect::<Vec<String>>().into_iter().filter(|x| x != "").collect::<Vec<String>>()));
+            std::process::exit(1);
         }
 
         let mut target = Target::<'a> {

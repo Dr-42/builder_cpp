@@ -147,6 +147,10 @@ pub fn parse_config(path: &str) -> (BuildConfig, Vec<TargetConfig>) {
             }).to_string(),
             deps,
         };
+        if target_config.typ != "exe" && target_config.typ != "dll" {
+            log(LogLevel::Error, "Type must be exe or dll");
+            std::process::exit(1);
+        }
         targets.push(target_config);
     }
 
