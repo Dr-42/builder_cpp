@@ -20,6 +20,7 @@ pub struct Target<'a> {
     pub bin_path: String,
     pub hash_file_path: String,
     path_hash: HashMap<String, String>,
+    pub dependant_libs: Vec<Target<'a>>,
 }
 
 //Represents a source file
@@ -32,7 +33,7 @@ pub struct Src {
 }
 
 impl<'a> Target<'a> {
-    pub fn new(build_config: &'a BuildConfig, target_config: &'a TargetConfig) -> Self {
+    pub fn new(build_config: &'a BuildConfig, target_config: &'a TargetConfig, targets: &'a Vec<TargetConfig>) -> Self {
         let srcs = Vec::new();
         let dependant_includes: HashMap<String, Vec<String>> = HashMap::new();
         
@@ -59,8 +60,16 @@ impl<'a> Target<'a> {
         let hash_file_path = format!("{}.linux.hash", &target_config.name);
         
         let path_hash = hasher::load_hashes_from_file(&hash_file_path);
+        let mut dependant_libs = Vec::new();
+        for dependant_lib in &target_config.deps {
+            for target in targets {
+                if target.name == *dependant_lib {
+                    dependant_libs.push(Target::new(build_config, target, targets));
+                }
+            }
+        }
 
-        let mut target = Target {
+        let mut target = Target::<'a> {
             srcs,
             build_config,
             target_config,
@@ -68,6 +77,7 @@ impl<'a> Target<'a> {
             bin_path,
             path_hash,
             hash_file_path,
+            dependant_libs,
         };
         target.get_srcs(&target_config.src, target_config);
         target
@@ -122,7 +132,7 @@ impl<'a> Target<'a> {
         self.srcs.par_iter().for_each(|src| {
             let (to_build, _message) = src.to_build(&self.path_hash);
             if to_build {
-                src.build(self.build_config, self.target_config);
+                src.build(self.build_config, self.target_config, &self.dependant_libs);
                 let log_level = std::env::var("BUILDER_CPP_LOG_LEVEL").unwrap_or("".to_string());
                 if !(log_level == "Info" || log_level == "Debug"){
                     let mut num_complete = num_complete.lock().unwrap();
@@ -148,11 +158,11 @@ impl<'a> Target<'a> {
             }
             hasher::save_hashes_to_file(&self.hash_file_path, &self.path_hash);
             log(LogLevel::Debug, &format!("Hashes: {:?}", &self.path_hash));
-            self.link();
+            self.link(&self.dependant_libs);
         }
     }
 
-    pub fn link(&self) {
+    pub fn link(&self, dep_targets: &Vec<Target>) {
         let mut objs = Vec::new();
         if !Path::new(&self.build_config.build_dir).exists() {
             fs::create_dir(&self.build_config.build_dir).unwrap();
@@ -176,6 +186,27 @@ impl<'a> Target<'a> {
         cmd.push_str(" ");
         cmd.push_str(&self.target_config.cflags);
         cmd.push_str(" ");
+        for dep_target in dep_targets {
+            cmd.push_str(" -I");
+            cmd.push_str(&dep_target.target_config.include_dir);
+            cmd.push_str(" ");
+
+            cmd.push_str(" -L");
+            cmd.push_str(&dep_target.build_config.build_dir);
+            cmd.push_str(" ");
+
+            let lib_name = dep_target.target_config.name.clone();
+            let lib_name = lib_name.replace("lib", "-l");
+            cmd.push_str(&lib_name);
+            cmd.push_str(" ");
+
+            #[cfg(target_os = "linux")]
+            {
+                cmd.push_str(" -Wl,-rpath,");
+                cmd.push_str(&dep_target.build_config.build_dir);
+                cmd.push_str(" ");
+            }
+        }
         cmd.push_str(&self.target_config.libs);
 
 
@@ -394,7 +425,7 @@ impl Src {
         result
     }
 
-    fn build(&self, build_config: &BuildConfig, target_config: &TargetConfig) {
+    fn build(&self, build_config: &BuildConfig, target_config: &TargetConfig, dependant_libs: &Vec<Target>) {
         let mut cmd = String::new();
         cmd.push_str(&build_config.compiler);
         cmd.push_str(" -c ");
@@ -404,6 +435,13 @@ impl Src {
         cmd.push_str(" -I");
         cmd.push_str(&target_config.include_dir);
         cmd.push_str(" ");
+
+        for dependant_lib in dependant_libs {
+            cmd.push_str("-I");
+            cmd.push_str(dependant_lib.target_config.include_dir.as_str());
+            cmd.push_str(" ");
+        }
+
         cmd.push_str(&target_config.cflags);
 
         if target_config.typ == "dll" {
@@ -502,7 +540,7 @@ pub fn build(build_config: &BuildConfig, targets: &Vec<TargetConfig>, gen_cc: bo
         });
     }
     for target in targets {
-        let mut trgt = Target::new(build_config, target);
+        let mut trgt = Target::new(build_config, target, &targets);
         trgt.build(gen_cc);
     }
     if gen_cc {
@@ -523,8 +561,8 @@ pub fn build(build_config: &BuildConfig, targets: &Vec<TargetConfig>, gen_cc: bo
     log(LogLevel::Info, "Build complete");
 }
 
-pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig) {
-    let trgt = Target::new(build_config, exe_target);
+pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig, targets: &Vec<TargetConfig>) {
+    let trgt = Target::new(build_config, exe_target, &targets);
     if !Path::new(&trgt.bin_path).exists() {
         log(LogLevel::Error, &format!("Could not find binary: {}", &trgt.bin_path));
         std::process::exit(1);

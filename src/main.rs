@@ -8,10 +8,6 @@ fn main() {
     #[cfg(target_os = "windows")]
     let (build_config, targets) = utils::parse_config("./config_win32.toml");
 
-    utils::log(utils::LogLevel::Log, &format!("Build config: {:?}", build_config));
-    utils::log(utils::LogLevel::Log, &format!("Targets: {:?}", targets));
-    std::process::exit(0);
-
     let mut num_exe = 0;
     let mut exe_target : Option<&utils::TargetConfig> = None;
     if targets.len() == 0 {
@@ -92,7 +88,7 @@ fn main() {
                     std::process::exit(1);
                 }
                 utils::log(utils::LogLevel::Log, "Running executable");
-                builder::run(&build_config, &exe_target.unwrap());
+                builder::run(&build_config, &exe_target.unwrap(), &targets);
             }
 
         }
