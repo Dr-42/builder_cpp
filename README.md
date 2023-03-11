@@ -11,6 +11,7 @@ Write a config_win32.toml for windows and config_linux.toml for linux
 
 [x] Multithreaded
 [x] Can generate compile_commnds.json
+[x] Auto add project libraries to other targets
 
 Sample file
 ```
@@ -32,8 +33,9 @@ name = "main"
 src = "./Nomu_Engine/Game/src/"
 include_dir = "./Nomu_Engine/Game/src"
 type = "exe"
-cflags = "-g -Wall -INomu_Engine/Engine/src/include"
-libs = " -LNomu_Engine/bin -lengine -static-libstdc++ -Wl,-rpath=Nomu_Engine/bin"
+cflags = "-g -Wall"
+libs = "-static-libstdc++"
+deps = ["libengine"]
 ```
 
 All keys mentioned are mandatory.
