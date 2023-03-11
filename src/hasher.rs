@@ -51,7 +51,6 @@ pub fn save_hashes_to_file(path: &str, path_hash: &HashMap<String, String>) {
         let line = format!("{} {}\n", path, hash);
         file.write(line.as_bytes()).unwrap();
     }
-    log(LogLevel::Debug, &format!("Saved hashes to file: {:?}", path_hash));
 }
 
 pub fn is_file_changed(path: &str, path_hash: &HashMap<String, String>) -> bool {
@@ -62,11 +61,6 @@ pub fn is_file_changed(path: &str, path_hash: &HashMap<String, String>) -> bool 
     let hash = hash.unwrap();
     let new_hash = hash_file(path);
     let result = hash != new_hash;
-    if result {
-        log(LogLevel::Debug, &format!("File changed, updating hash for file: {}", path));
-        log(LogLevel::Debug, &format!("\tOld hash: {}", hash));
-        log(LogLevel::Debug, &format!("\tNew hash: {}", new_hash));
-    }
     result
 }
 

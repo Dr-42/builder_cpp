@@ -82,8 +82,6 @@ impl<'a> Target<'a> {
                 utils::log(LogLevel::Error, "Dependant lib name must start with lib");
                 utils::log(LogLevel::Error, &format!("Target: {} does not start with lib", dep_lib.target_config.name));
                 std::process::exit(1);
-            } else {
-                utils::log(LogLevel::Debug, &format!("Dependant lib: {} starts with lib", dep_lib.target_config.name));
             }
         }
         if target_config.deps.len() != dependant_libs.len() {
@@ -187,7 +185,6 @@ impl<'a> Target<'a> {
                 }
             }
             hasher::save_hashes_to_file(&self.hash_file_path, &self.path_hash);
-            log(LogLevel::Debug, &format!("Hashes: {:?}", &self.path_hash));
             self.link(&self.dependant_libs);
         }
     }
@@ -393,7 +390,6 @@ impl<'a> Target<'a> {
             std::process::exit(1);
         });
         if include_substrings.len() == 0 {
-            log(LogLevel::Debug, &format!("  {} depends on: {:?}", path, result));
             return result;
         }
         for include_substring in include_substrings {
@@ -406,7 +402,6 @@ impl<'a> Target<'a> {
             self.dependant_includes.insert(include_substring, result.clone());
         }
         let result = result.into_iter().unique().collect();
-        log(LogLevel::Debug, &format!("  {} depends on: {:?}", path, result));
         result
     }
 
