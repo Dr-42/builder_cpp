@@ -9,9 +9,9 @@ Write a config_win32.toml for windows and config_linux.toml for linux
 
 ## Features
 
-[x] Multithreaded
-[x] Can generate compile_commnds.json
-[x] Auto add project libraries to other targets
+- [x] Multithreaded
+- [x] Can generate compile_commnds.json
+- [x] Auto add project libraries to other targets
 
 Sample file
 ```
