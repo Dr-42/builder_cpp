@@ -264,7 +264,16 @@ impl<'a> Target<'a> {
     fn gen_cc(&self, src: &Src) -> String {
         let mut cc = String::new();
         cc.push_str("{\n");
-        cc.push_str("\t\"command\": \"c++ -c -o ");
+        if self.build_config.compiler == "clang++" || self.build_config.compiler == "g++" {
+            cc.push_str("\t\"command\": \"c++");
+        } else if self.build_config.compiler == "clang" || self.build_config.compiler == "gcc"{
+            cc.push_str("\t\"command\": \"cc");
+        } else {
+            log(LogLevel::Error, &format!("Compiler: {} is not supported", &self.build_config.compiler));
+            log(LogLevel::Error, "Supported compilers: clang++, g++, clang, gcc");
+            std::process::exit(1);
+        }
+        cc.push_str(" -c -o ");
         cc.push_str(&src.obj_name);
         cc.push_str(" -I");
         cc.push_str(&self.target_config.include_dir);
