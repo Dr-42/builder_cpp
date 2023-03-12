@@ -39,7 +39,7 @@ pub fn log(level: LogLevel, message: &str) {
         Err(_) => LogLevel::Log,
     };
     if log_level == LogLevel::Debug {
-        if level == LogLevel::Debug {
+        if level == LogLevel::Debug || level == LogLevel::Warn || level == LogLevel::Error {
             println!("{} {}", level_str, message);
         }
     } else if level >= log_level {
