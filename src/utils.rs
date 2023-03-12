@@ -53,6 +53,7 @@ pub struct BuildConfig {
     pub compiler: String,
     pub build_dir: String,
     pub obj_dir: String,
+    pub packages: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -82,7 +83,28 @@ pub fn parse_config(path: &str) -> (BuildConfig, Vec<TargetConfig>) {
         log(LogLevel::Error, &format!("Error: {}", e));
         std::process::exit(1);
     });
-    
+
+
+    let mut pkgs: Vec<String> = Vec::new();
+    let empty_value = Value::Array(Vec::new());
+    //pkgs is optional
+    let pkgs_toml = config["build"].as_table().unwrap_or_else(|| {
+        log(LogLevel::Error, "Could not find build in config file");
+        std::process::exit(1);})
+        .get("packages").unwrap_or_else(|| &empty_value)
+        .as_array()
+        .unwrap_or_else(|| {
+            log(LogLevel::Error, "packages is not an array");
+            std::process::exit(1);
+        });
+
+    for pkg in pkgs_toml            {
+        pkgs.push(pkg.as_str().unwrap_or_else(|| {
+            log(LogLevel::Error, "packages are a vec of strings");
+            std::process::exit(1);
+        }).to_string());
+    }
+
     //parse the string into a struct
     let build_config = BuildConfig {
         compiler: config["build"]["compiler"].as_str().unwrap_or_else(|| {
@@ -97,33 +119,33 @@ pub fn parse_config(path: &str) -> (BuildConfig, Vec<TargetConfig>) {
             log(LogLevel::Error, "Could not find obj_dir in config file");
             std::process::exit(1);
         }).to_string(),
+        packages: pkgs,
     };
 
-    let mut targets = Vec::new();
-
-    for target in config["targets"].as_array().unwrap_or_else(|| {
+    let mut tgt = Vec::new();
+    let targets = config["targets"].as_array().unwrap_or_else(|| {
         log(LogLevel::Error, "Could not find targets in config file");
         std::process::exit(1);
-    })
-    {
-        let mut deps: Vec<String> = Vec::new();
+    });
 
+    for target in targets {
+        let mut deps: Vec<String> = Vec::new();
         let empty_value = Value::Array(Vec::new());
         //deps is optional
-        let deps_toml = target.get("deps").unwrap_or_else(|| {
-            &empty_value
-        });
-        for dep in deps_toml.as_array().unwrap_or_else(|| {
-            log(LogLevel::Error, "Deps is not an array");
-            std::process::exit(1);
-        })
-        {
+        let deps_toml = target.get("deps").unwrap_or_else(|| { &empty_value })
+            .as_array()
+            .unwrap_or_else(|| {
+                log(LogLevel::Error, "Deps is not an array");
+                std::process::exit(1);
+            })
+        ;
+        for dep in deps_toml            {
             deps.push(dep.as_str().unwrap_or_else(|| {
                 log(LogLevel::Error, "Deps are a vec of strings");
                 std::process::exit(1);
             }).to_string());
         }
-            
+
         let target_config = TargetConfig {
             name: target["name"].as_str().unwrap_or_else(|| {
                 log(LogLevel::Error, "Could not find name in confiig file");
@@ -155,8 +177,8 @@ pub fn parse_config(path: &str) -> (BuildConfig, Vec<TargetConfig>) {
             log(LogLevel::Error, "Type must be exe or dll");
             std::process::exit(1);
         }
-        targets.push(target_config);
+        tgt.push(target_config);
     }
 
-    (build_config, targets)
+    (build_config, tgt)
 }
