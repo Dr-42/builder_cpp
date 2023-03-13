@@ -4,9 +4,9 @@ use std::path::Path;
 
 fn main() {
     #[cfg(target_os = "linux")]
-    let (build_config, targets) = utils::parse_config("./config_linux.toml");
+    let (build_config, targets) = utils::parse_config("./config_linux.toml", true);
     #[cfg(target_os = "windows")]
-    let (build_config, targets) = utils::parse_config("./config_win32.toml");
+    let (build_config, targets) = utils::parse_config("./config_win32.toml", true);
 
     #[cfg(target_os = "linux")]
     let packages = utils::Package::parse_packages("./config_linux.toml");

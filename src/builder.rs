@@ -121,6 +121,12 @@ impl<'a> Target<'a> {
     }
 
     pub fn build(&mut self, gen_cc: bool ) {
+        if !Path::new(".bld_cpp").exists() {
+            std::fs::create_dir(".bld_cpp").unwrap_or_else(|why| {
+                utils::log(LogLevel::Error, &format!("Couldn't create .bld_cpp directory: {}", why));
+                std::process::exit(1);
+            });
+        }
         for pkg in self.packages {
             for target in &pkg.target_configs {
                 let empty: Vec<Package> = Vec::new();
@@ -218,9 +224,6 @@ impl<'a> Target<'a> {
             .expect("failed to execute process");
             if !output.status.success() {
                 log(LogLevel::Error, &format!("Couldn't create build dir: {}", String::from_utf8_lossy(&output.stderr)));
-            }
-            else {
-                log(LogLevel::Log, &format!("Created build dir: {}", BUILD_DIR));
             }
         }
         for src in &self.srcs {
@@ -440,6 +443,7 @@ impl<'a> Target<'a> {
         let mut obj_name = String::new();
         obj_name.push_str(OBJ_DIR);
         obj_name.push_str("/");
+        obj_name.push_str(&self.target_config.name);
         obj_name.push_str(&src_name);
         obj_name.push_str(".o");
         obj_name
@@ -582,6 +586,11 @@ impl Src {
 }
 
 pub fn clean(targets: &Vec<TargetConfig>) {
+    if Path::new(".bld_cpp").exists() {
+        fs::create_dir_all(".bld_cpp").unwrap_or_else(|why| {
+            log(LogLevel::Error, &format!("Could not remove binary directory: {}", why));
+        });
+    }
     if Path::new(OBJ_DIR).exists() {
         fs::remove_dir_all(OBJ_DIR).unwrap_or_else(|why| {
             log(LogLevel::Error, &format!("Could not remove object directory: {}", why));
@@ -659,6 +668,12 @@ pub fn clean_packages(packages: &Vec<Package>) {
 }
 
 pub fn build(build_config: &BuildConfig, targets: &Vec<TargetConfig>, gen_cc: bool, packages: &Vec<Package>) {
+    if !Path::new("./.bld_cpp").exists() {
+        fs::create_dir(".bld_cpp").unwrap_or_else(|why| {
+            log(LogLevel::Error, &format!("Could not create bld_cpp directory: {}", why));
+            std::process::exit(1);
+        });
+    }
     if gen_cc {
         let mut cc_file = fs::OpenOptions::new()
             .write(true)
