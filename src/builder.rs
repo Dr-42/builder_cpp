@@ -36,6 +36,7 @@ pub struct Src {
     pub path: String,
     pub name: String,
     pub obj_name: String,
+    pub bin_path: String,
     pub dependant_includes: Vec<String>,
 }
 
@@ -422,7 +423,8 @@ impl<'a> Target<'a> {
         let name = Target::get_src_name(&path);
         let obj_name = self.get_src_obj_name(&name);
         let dependant_includes = self.get_dependant_includes(&path);
-        self.srcs.push(Src::new(path, name, obj_name, dependant_includes));
+        let bin_path = self.bin_path.clone();
+        self.srcs.push(Src::new(path, name, obj_name, bin_path, dependant_includes));
     }
 
     //returns the file name without the extension from the path
@@ -491,20 +493,21 @@ impl<'a> Target<'a> {
 
 impl Src {
     //Creates a new source file
-    fn new(path: String, name: String, obj_name: String, dependant_includes: Vec<String>) -> Self {
+    fn new(path: String, name: String, obj_name: String, bin_path: String, dependant_includes: Vec<String>) -> Self {
         Self {
             path,
             name,
             obj_name,
+            bin_path,
             dependant_includes,
         }
     }
 
     fn to_build(&self, path_hash: &HashMap<String, String>) -> (bool, String) {
-        /*if !Path::new(&self.obj_name).exists() {
-            let result = (true, format!("\tObject file does not exist: {}", &self.obj_name));
+        if !Path::new(&self.bin_path).exists() {
+            let result = (true, format!("\tBinary does not exist: {}", &self.bin_path));
             return result;
-        }*/
+        }
 
         if hasher::is_file_changed(&self.path, &path_hash) {
             let result =  (true, format!("\tSource file has changed: {}", &self.path));
@@ -622,6 +625,34 @@ pub fn clean(targets: &Vec<TargetConfig>) {
                 log(LogLevel::Log, &format!("Cleaning: {}", &bin_name));
             } else {
                 log(LogLevel::Log, &format!("Binary file does not exist: {}", &bin_name));
+            }
+        }
+    }
+}
+
+pub fn clean_packages(packages: &Vec<Package>) {
+    for pack in packages {
+        for target in &pack.target_configs {
+            #[cfg(target_os = "windows")]
+            let pack_bin_path = format!("{}/{}.dll",BUILD_DIR, &target.name);
+            #[cfg(target_os = "linux")]
+            let pack_bin_path = format!("{}/{}.so",BUILD_DIR, &target.name);
+
+            if !Path::new(&pack_bin_path).exists() {
+                log(LogLevel::Log, &format!("Package binary does not exist: {}", &pack_bin_path));
+                continue;
+            }
+            let cmd_str = format!("rm {}", &pack_bin_path);
+            log(LogLevel::Debug, cmd_str.as_str());
+            let output = Command::new("sh")
+                .arg("-c")
+                .arg(&cmd_str)
+                .output()
+                .expect("failed to execute process");
+            if output.status.success() {
+                log(LogLevel::Log, &format!("Cleaned package: {} of {}", &pack.name, &pack.repo));
+            } else {
+                log(LogLevel::Error, &format!("Could not clean package: {} of {}", &pack.name, &pack.repo));
             }
         }
     }
