@@ -317,6 +317,14 @@ impl<'a> Target<'a> {
         cc.push_str(&src.obj_name);
         cc.push_str(" -I");
         cc.push_str(&self.target_config.include_dir);
+
+        for pack in self.packages {
+            for tgtg in &pack.target_configs {
+                cc.push_str(" -I");
+                cc.push_str(&tgtg.include_dir);
+            }
+        }
+
         cc.push_str(" ");
         let cflags = &self.target_config.cflags;
         //Extract the -I mentions
