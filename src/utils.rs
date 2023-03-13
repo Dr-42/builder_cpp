@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read};
+use std::{fs::File, io::Read, path::Path, process::Command};
 use toml::{Table, Value};
 use colored::Colorize;
 
@@ -181,4 +181,148 @@ pub fn parse_config(path: &str) -> (BuildConfig, Vec<TargetConfig>) {
     }
 
     (build_config, tgt)
+}
+
+#[derive(Debug)]
+pub struct Package {
+    pub name: String,
+    pub repo: String,
+    pub branch: String,
+    pub build_config: BuildConfig,
+    pub target_configs: Vec<TargetConfig>,
+}
+
+impl Package {
+    pub fn new(name: String, repo: String, branch: String, build_config: BuildConfig, target_configs: Vec<TargetConfig>) -> Package {
+        Package {
+            name,
+            repo,
+            branch,
+            build_config,
+            target_configs,
+        }
+    }
+    pub fn parse_packages(path: &str) -> Vec<Package> {
+        let mut packages: Vec<Package> = Vec::new();
+        //initialize fields
+        let mut name = String::new();
+        let mut repo = String::new();
+        let mut branch = String::new();
+        let mut build_config = BuildConfig {
+            compiler: String::new(),
+            build_dir: String::new(),
+            obj_dir: String::new(),
+            packages: Vec::new(),
+        };
+        let mut target_configs = Vec::new();
+
+        //parse the root toml file
+        let (build_config_toml, _) = parse_config(path);
+        for package in build_config_toml.packages {
+            let deets = package.split_whitespace().collect::<Vec<&str>>();
+            if deets.len() != 2 {
+                log(LogLevel::Error, "Packages must be in the form of \"<git_repo> <branch>\"");
+                std::process::exit(1);
+            }
+            repo = deets[0].to_string().replace(",", "");
+            branch = deets[1].to_string();
+
+            name = repo.split("/").collect::<Vec<&str>>()[1].to_string();
+            let source_dir = format!("./.bld_cpp/sources/{}/", name);
+            if !Path::new(&source_dir).exists() {
+                Command::new("mkdir")
+                    .arg("-p")
+                    .arg(&source_dir)
+                    .output()
+                    .expect("Failed to execute mkdir");
+                if !Path::new(&source_dir).exists() {
+                    log(LogLevel::Error, &format!("Failed to create {}", source_dir));
+                    std::process::exit(1);
+                } else {
+                    log(LogLevel::Info, &format!("Created {}", source_dir));
+                }
+                log(LogLevel::Log, &format!("Cloning {} into {}", repo, source_dir));
+                let repo_https = format!("https://github.com/{}", repo);
+                let mut cmd = Command::new("git");
+                cmd.arg("clone")
+                    .arg("--branch")
+                    .arg(&branch)
+                    .arg(&repo_https)
+                    .arg(&source_dir);
+                let output = cmd.output().expect("Failed to execute git clone");
+                if !output.status.success() {
+                    log(LogLevel::Error, &format!("Failed to clone {} branch {} into {}", repo, branch, source_dir));
+                    std::process::exit(1);
+                }
+            }
+            #[cfg(target_os = "linux")]
+            let pkg_toml = format!("{}/config_linux.toml", source_dir);
+            #[cfg(target_os = "windows")]
+            let pkg_toml = format!("{}/config_win32.toml", source_dir);
+
+            let (pkg_bld_config_toml, pkg_targets_toml) = parse_config(&pkg_toml);
+            log(LogLevel::Info, &format!("Parsed {}", pkg_toml));
+
+            if pkg_bld_config_toml.packages.len() > 0 {
+                for foreign_package in Package::parse_packages(&pkg_toml){
+                    packages.push(foreign_package);
+                }
+            }
+
+            build_config = pkg_bld_config_toml;
+            build_config.compiler = build_config_toml.compiler.clone();
+            build_config.build_dir = "./.bld_cpp/build/bin/".to_string();
+            #[cfg(target_os = "linux")]
+            let ob_dir = format!("./.bld_cpp/obj/{}/obj_linux", name);
+            #[cfg(target_os = "windows")]
+            let ob_dir = format!("./.bld_cpp/obj/{}/obj_win32", name);
+            build_config.obj_dir = ob_dir;
+            if !Path::new(&build_config.obj_dir).exists() {
+                let cmd = Command::new("mkdir")
+                    .arg("-p")
+                    .arg(&build_config.obj_dir)
+                    .output();
+                if cmd.is_err() {
+                    log(LogLevel::Error, &format!("Failed to create {}", build_config.obj_dir));
+                    std::process::exit(1);
+                }
+                log(LogLevel::Info, &format!("Created {}", build_config.obj_dir));
+            }
+
+            let tgt_configs = pkg_targets_toml;
+            for mut tgt in tgt_configs {
+                if tgt.typ != "dll" {
+                    continue;
+                }
+                tgt.src = format!("{}/{}", source_dir, tgt.src).replace("\\", "/").replace("/./", "/").replace("//", "/");
+                let old_inc_dir = tgt.include_dir.clone();
+                tgt.include_dir = format!("./.bld_cpp/includes/{}/", name).replace("\\", "/").replace("/./", "/").replace("//", "/");
+                if !Path::new(&tgt.include_dir).exists() {
+                    let cmd = Command::new("mkdir")
+                        .arg("-p")
+                        .arg(&tgt.include_dir)
+                        .output();
+                    if cmd.is_err() {
+                        log(LogLevel::Error, &format!("Failed to create {}", tgt.include_dir));
+                        std::process::exit(1);
+                    }
+                    log(LogLevel::Info, &format!("Created {}", tgt.include_dir));
+                    let cmd = Command::new("cp")
+                        .arg("-r")
+                        .arg(&format!("{}/{}/*", source_dir, old_inc_dir).replace("\\", "/").replace("/./", "/").replace("//", "/"))
+                        .arg(&tgt.include_dir)
+                        .output();
+                    if cmd.is_err() {
+                        log(LogLevel::Error, &format!("Failed to copy {} to {}", old_inc_dir, tgt.include_dir));
+                        std::process::exit(1);
+                    }
+                    log(LogLevel::Info, &format!("Copied {} to {}", old_inc_dir, tgt.include_dir));
+                }
+                target_configs.push(tgt);
+            }
+        }
+
+        packages.push(Package::new(name, repo, branch, build_config, target_configs));
+        packages
+    }
 }
