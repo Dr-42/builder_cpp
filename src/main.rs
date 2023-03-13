@@ -80,7 +80,7 @@ fn main() {
             }
             if arg.contains('c') {
                 utils::log(utils::LogLevel::Log, "Cleaning build directory");
-                builder::clean(&build_config, &targets);
+                builder::clean(&targets);
                 valid_arg = true;
             }
             if arg.contains('b') {

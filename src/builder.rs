@@ -11,6 +11,12 @@ use rayon::prelude::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use colored::Colorize;
 
+static BUILD_DIR : &str = ".bld_cpp/bin";
+#[cfg(target_os = "windows")]
+static OBJ_DIR: &str  = ".bld_cpp/obj_win32";
+#[cfg(target_os = "linux")]
+static OBJ_DIR: &str  = ".bld_cpp/obj_linux";
+
 //Represents a target
 pub struct Target<'a> {
     pub srcs: Vec<Src>,
@@ -39,7 +45,7 @@ impl<'a> Target<'a> {
         let dependant_includes: HashMap<String, Vec<String>> = HashMap::new();
         
         let mut bin_path = String::new();
-        bin_path.push_str(&build_config.build_dir);
+        bin_path.push_str(BUILD_DIR);
         bin_path.push_str("/");
         bin_path.push_str(&target_config.name);
         #[cfg(target_os = "windows")]
@@ -155,8 +161,8 @@ impl<'a> Target<'a> {
         if to_link {
             log(LogLevel::Log, &format!("Compiling Target: {}", &self.target_config.name));
             log(LogLevel::Log, &format!("\t {} of {} source files have to be compiled", srcs_needed, total_srcs));
-            if !Path::new(&self.build_config.obj_dir).exists() {
-                fs::create_dir(&self.build_config.obj_dir).unwrap_or_else(|why| {
+            if !Path::new(OBJ_DIR).exists() {
+                fs::create_dir(OBJ_DIR).unwrap_or_else(|why| {
                     log(LogLevel::Error, &format!("Couldn't create obj dir: {}", why));
                 });
             }
@@ -202,8 +208,8 @@ impl<'a> Target<'a> {
 
     pub fn link(&self, dep_targets: &Vec<Target>) {
         let mut objs = Vec::new();
-        if !Path::new(&self.build_config.build_dir).exists() {
-            let cmd = format!("mkdir -p {}", &self.build_config.build_dir);
+        if !Path::new(BUILD_DIR).exists() {
+            let cmd = format!("mkdir -p {}", BUILD_DIR);
             let output = Command::new("sh")
             .arg("-c")
             .arg(cmd)
@@ -213,7 +219,7 @@ impl<'a> Target<'a> {
                 log(LogLevel::Error, &format!("Couldn't create build dir: {}", String::from_utf8_lossy(&output.stderr)));
             }
             else {
-                log(LogLevel::Log, &format!("Created build dir: {}", &self.build_config.build_dir));
+                log(LogLevel::Log, &format!("Created build dir: {}", BUILD_DIR));
             }
         }
         for src in &self.srcs {
@@ -269,11 +275,11 @@ impl<'a> Target<'a> {
 
         if self.packages.len() + self.dependant_libs.len() > 0 {
             cmd.push_str(" -L");
-            cmd.push_str(&self.build_config.build_dir);
+            cmd.push_str(BUILD_DIR);
             cmd.push_str(" ");
 
             cmd.push_str(" -Wl,-rpath,");
-            cmd.push_str(&self.build_config.build_dir);
+            cmd.push_str(BUILD_DIR);
             cmd.push_str(" ");
         }
         cmd.push_str(&self.target_config.libs);
@@ -414,7 +420,7 @@ impl<'a> Target<'a> {
     //adds a source file to the target
     fn add_src(&mut self, path: String) {
         let name = Target::get_src_name(&path);
-        let obj_name = self.get_src_obj_name(&name, self.build_config);
+        let obj_name = self.get_src_obj_name(&name);
         let dependant_includes = self.get_dependant_includes(&path);
         self.srcs.push(Src::new(path, name, obj_name, dependant_includes));
     }
@@ -428,9 +434,9 @@ impl<'a> Target<'a> {
     }
 
     //retur the object file name for the given source file
-    fn get_src_obj_name(&self, src_name: &str, build_config: &'a BuildConfig) -> String {
+    fn get_src_obj_name(&self, src_name: &str) -> String {
         let mut obj_name = String::new();
-        obj_name.push_str(&build_config.obj_dir);
+        obj_name.push_str(OBJ_DIR);
         obj_name.push_str("/");
         obj_name.push_str(&src_name);
         obj_name.push_str(".o");
@@ -495,10 +501,10 @@ impl Src {
     }
 
     fn to_build(&self, path_hash: &HashMap<String, String>) -> (bool, String) {
-        if !Path::new(&self.obj_name).exists() {
+        /*if !Path::new(&self.obj_name).exists() {
             let result = (true, format!("\tObject file does not exist: {}", &self.obj_name));
             return result;
-        }
+        }*/
 
         if hasher::is_file_changed(&self.path, &path_hash) {
             let result =  (true, format!("\tSource file has changed: {}", &self.path));
@@ -572,12 +578,12 @@ impl Src {
     }
 }
 
-pub fn clean(build_config: &BuildConfig, targets: &Vec<TargetConfig>) {
-    if Path::new(&build_config.obj_dir).exists() {
-        fs::remove_dir_all(&build_config.obj_dir).unwrap_or_else(|why| {
+pub fn clean(targets: &Vec<TargetConfig>) {
+    if Path::new(OBJ_DIR).exists() {
+        fs::remove_dir_all(OBJ_DIR).unwrap_or_else(|why| {
             log(LogLevel::Error, &format!("Could not remove object directory: {}", why));
         });
-        log(LogLevel::Info, &format!("Cleaning: {}", &build_config.obj_dir));
+        log(LogLevel::Info, &format!("Cleaning: {}", OBJ_DIR));
     }
     for target in targets {
         //remove hashes
@@ -592,9 +598,9 @@ pub fn clean(build_config: &BuildConfig, targets: &Vec<TargetConfig>) {
             });
             log(LogLevel::Info, &format!("Cleaning: {}", &hash_path));
         }
-        if Path::new(&build_config.build_dir).exists() {
+        if Path::new(BUILD_DIR).exists() {
             let mut bin_name = String::new();
-            bin_name.push_str(&build_config.build_dir);
+            bin_name.push_str(BUILD_DIR);
             bin_name.push_str("/");
             bin_name.push_str(&target.name);
             #[cfg(target_os = "windows")]

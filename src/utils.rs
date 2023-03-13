@@ -2,6 +2,11 @@ use std::{fs::File, io::Read, path::Path, process::Command};
 use toml::{Table, Value};
 use colored::Colorize;
 
+#[cfg(target_os = "windows")]
+static OBJ_DIR: &str  = ".bld_cpp/obj_win32";
+#[cfg(target_os = "linux")]
+static OBJ_DIR: &str  = ".bld_cpp/obj_linux";
+
 //Log utils
 #[derive(PartialEq, PartialOrd, Debug)]
 pub enum LogLevel {
@@ -51,8 +56,6 @@ pub fn log(level: LogLevel, message: &str) {
 #[derive(Debug)]
 pub struct BuildConfig {
     pub compiler: String,
-    pub build_dir: String,
-    pub obj_dir: String,
     pub packages: Vec<String>,
 }
 
@@ -109,14 +112,6 @@ pub fn parse_config(path: &str) -> (BuildConfig, Vec<TargetConfig>) {
     let build_config = BuildConfig {
         compiler: config["build"]["compiler"].as_str().unwrap_or_else(|| {
             log(LogLevel::Error, "Could not find compiler in config file");
-            std::process::exit(1);
-        }).to_string(),
-        build_dir: config["build"]["build_dir"].as_str().unwrap_or_else(|| {
-            log(LogLevel::Error, "Could not find build_dir in config file");
-            std::process::exit(1);
-        }).to_string(),
-        obj_dir: config["build"]["obj_dir"].as_str().unwrap_or_else(|| {
-            log(LogLevel::Error, "Could not find obj_dir in config file");
             std::process::exit(1);
         }).to_string(),
         packages: pkgs,
@@ -210,8 +205,6 @@ impl Package {
         let mut branch = String::new();
         let mut build_config = BuildConfig {
             compiler: String::new(),
-            build_dir: String::new(),
-            obj_dir: String::new(),
             packages: Vec::new(),
         };
         let mut target_configs = Vec::new();
@@ -271,18 +264,16 @@ impl Package {
 
             build_config = pkg_bld_config_toml;
             build_config.compiler = build_config_toml.compiler.clone();
-            build_config.build_dir = build_config_toml.build_dir.clone();
-            build_config.obj_dir = build_config_toml.obj_dir.clone();
-            if !Path::new(&build_config.obj_dir).exists() {
+            if !Path::new(OBJ_DIR).exists() {
                 let cmd = Command::new("mkdir")
                     .arg("-p")
-                    .arg(&build_config.obj_dir)
+                    .arg(OBJ_DIR)
                     .output();
                 if cmd.is_err() {
-                    log(LogLevel::Error, &format!("Failed to create {}", build_config.obj_dir));
+                    log(LogLevel::Error, &format!("Failed to create {}", OBJ_DIR));
                     std::process::exit(1);
                 }
-                log(LogLevel::Info, &format!("Created {}", build_config.obj_dir));
+                log(LogLevel::Info, &format!("Created {}", OBJ_DIR));
             }
 
             let tgt_configs = pkg_targets_toml;
