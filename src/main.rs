@@ -54,6 +54,14 @@ fn main() {
         valid_arg = true;
     }
 
+    if args.contains(&"--update-packages".to_string()) {
+        utils::log(utils::LogLevel::Log, "Updating packages...");
+        for package in &packages {
+            package.update();
+        }
+        valid_arg = true;
+    }
+
     if args.contains(&"--help".to_string()) || args.contains(&"-h".to_string()) {
         print_help();
         std::process::exit(0);
@@ -123,6 +131,7 @@ fn print_help() {
     utils::log(utils::LogLevel::Log, "\t--help\t\t\tShow this help message");
     utils::log(utils::LogLevel::Log, "\t--gen-cc\t\tGenerate compile_commands.json");
     utils::log(utils::LogLevel::Log, "\t--clean-packages\tClean the package binaries");
+    utils::log(utils::LogLevel::Log, "\t--update-packages\tUpdate the packages");
     utils::log(utils::LogLevel::Log, "Environment variables:");
     utils::log(utils::LogLevel::Log, "\tBUILDER_CPP_LOG_LEVEL");
     utils::log(utils::LogLevel::Log, "\t\tValid values are: Debug, Log, Info, Warn, Error");
