@@ -271,12 +271,8 @@ impl Package {
 
             build_config = pkg_bld_config_toml;
             build_config.compiler = build_config_toml.compiler.clone();
-            build_config.build_dir = "./.bld_cpp/build/bin/".to_string();
-            #[cfg(target_os = "linux")]
-            let ob_dir = format!("./.bld_cpp/obj/{}/obj_linux", name);
-            #[cfg(target_os = "windows")]
-            let ob_dir = format!("./.bld_cpp/obj/{}/obj_win32", name);
-            build_config.obj_dir = ob_dir;
+            build_config.build_dir = build_config_toml.build_dir.clone();
+            build_config.obj_dir = build_config_toml.obj_dir.clone();
             if !Path::new(&build_config.obj_dir).exists() {
                 let cmd = Command::new("mkdir")
                     .arg("-p")
@@ -296,7 +292,7 @@ impl Package {
                 }
                 tgt.src = format!("{}/{}", source_dir, tgt.src).replace("\\", "/").replace("/./", "/").replace("//", "/");
                 let old_inc_dir = tgt.include_dir.clone();
-                tgt.include_dir = format!("./.bld_cpp/includes/{}/", name).replace("\\", "/").replace("/./", "/").replace("//", "/");
+                tgt.include_dir = format!("./.bld_cpp/includes/{}", name).replace("\\", "/").replace("/./", "/").replace("//", "/");
                 if !Path::new(&tgt.include_dir).exists() {
                     let cmd = Command::new("mkdir")
                         .arg("-p")
@@ -307,16 +303,19 @@ impl Package {
                         std::process::exit(1);
                     }
                     log(LogLevel::Info, &format!("Created {}", tgt.include_dir));
-                    let cmd = Command::new("cp")
-                        .arg("-r")
-                        .arg(&format!("{}/{}/*", source_dir, old_inc_dir).replace("\\", "/").replace("/./", "/").replace("//", "/"))
-                        .arg(&tgt.include_dir)
+                    let mut cm = String::new();
+                    cm.push_str("cp -r ");
+                    cm.push_str(&format!("{}/{}/* ", source_dir, old_inc_dir).replace("\\", "/").replace("/./", "/").replace("//", "/"));
+                    cm.push_str(&tgt.include_dir);
+                    cm.push_str("/ ");
+                    let cmd = Command::new("sh")
+                        .arg("-c")
+                        .arg(&cm)
                         .output();
                     if cmd.is_err() {
-                        log(LogLevel::Error, &format!("Failed to copy {} to {}", old_inc_dir, tgt.include_dir));
+                        log(LogLevel::Error, &format!("Failed to create {}", tgt.include_dir));
                         std::process::exit(1);
                     }
-                    log(LogLevel::Info, &format!("Copied {} to {}", old_inc_dir, tgt.include_dir));
                 }
                 target_configs.push(tgt);
             }

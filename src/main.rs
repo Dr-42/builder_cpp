@@ -9,12 +9,11 @@ fn main() {
     let (build_config, targets) = utils::parse_config("./config_win32.toml");
 
     #[cfg(target_os = "linux")]
-    let packages = utils::Package(parse_packages("./config_linux.toml"));
+    let packages = utils::Package::parse_packages("./config_linux.toml");
     #[cfg(target_os = "windows")]
     let packages = utils::Package::parse_packages("./config_win32.toml");
 
     utils::log(utils::LogLevel::Debug, &format!("Packages: {:#?}", packages));
-    std::process::exit(0);
 
     let mut num_exe = 0;
     let mut exe_target : Option<&utils::TargetConfig> = None;
@@ -86,7 +85,7 @@ fn main() {
             }
             if arg.contains('b') {
                 utils::log(utils::LogLevel::Log, "Building project");
-                builder::build(&build_config, &targets, gen_cc);
+                builder::build(&build_config, &targets, gen_cc, &packages);
                 valid_arg = true;
             }
             if arg.contains('r') {
@@ -96,7 +95,7 @@ fn main() {
                     std::process::exit(1);
                 }
                 utils::log(utils::LogLevel::Log, "Running executable");
-                builder::run(&build_config, &exe_target.unwrap(), &targets);
+                builder::run(&build_config, &exe_target.unwrap(), &targets, &packages);
             }
 
         }
