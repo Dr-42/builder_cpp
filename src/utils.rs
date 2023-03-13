@@ -204,16 +204,8 @@ impl Package {
         log(LogLevel::Log, &format!("Updating package: {}", self.name));
         cmd.push_str(" &&");
         cmd.push_str(" git");
-        cmd.push_str(" fetch");
-        cmd.push_str(" origin");
-        cmd.push_str(" &&");
-        cmd.push_str(" git");
         cmd.push_str(" pull");
         cmd.push_str(" origin");
-        cmd.push_str(&format!(" {}", self.branch));
-        cmd.push_str(" &&");
-        cmd.push_str(" git");
-        cmd.push_str(" checkout");
         cmd.push_str(&format!(" {}", self.branch));
         let com = Command::new("sh")
             .arg("-c")
@@ -228,6 +220,32 @@ impl Package {
             log(LogLevel::Log, &format!("Output: {}", String::from_utf8_lossy(&com.stdout)).replace("\r", "").replace("\n", ""));
         } else {
             log(LogLevel::Error, &format!("Failed to update package: {}", String::from_utf8_lossy(&com.stderr)));
+            std::process::exit(1);
+        }
+    }
+
+    pub fn restore(&self) {
+        let mut cmd = String::from("cd");
+        cmd.push_str(&format!(" ./.bld_cpp/sources/{}", self.name));
+        log(LogLevel::Log, &format!("Updating package: {}", self.name));
+        cmd.push_str(" &&");
+        cmd.push_str(" git");
+        cmd.push_str(" reset");
+        cmd.push_str(" --hard");
+        cmd.push_str(&format!(" {}", self.branch));
+        let com = Command::new("sh")
+            .arg("-c")
+            .arg(cmd)
+            .output()
+            .unwrap_or_else(|e| {
+                log(LogLevel::Error, &format!("Failed to restore package: {}", e));
+                std::process::exit(1);
+            });
+        if com.status.success() {
+            log(LogLevel::Log, &format!("Successfully restored package: {}", self.name));
+            log(LogLevel::Log, &format!("Output: {}", String::from_utf8_lossy(&com.stdout)).replace("\r", "").replace("\n", ""));
+        } else {
+            log(LogLevel::Error, &format!("Failed to restore package: {}", String::from_utf8_lossy(&com.stderr)));
             std::process::exit(1);
         }
     }

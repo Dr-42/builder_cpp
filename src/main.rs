@@ -62,6 +62,19 @@ fn main() {
         valid_arg = true;
     }
 
+    if args.contains(&"--restore-packages".to_string()) {
+        utils::log(utils::LogLevel::Log, "Restoring packages...");
+        for package in &packages {
+            package.restore();
+        }
+        valid_arg = true;
+    }
+
+    if args.contains(&"--version".to_string()) {
+        utils::log(utils::LogLevel::Log, "builder_cpp v0.3.1");
+        std::process::exit(0);
+    }
+
     if args.contains(&"--help".to_string()) || args.contains(&"-h".to_string()) {
         print_help();
         std::process::exit(0);
@@ -132,6 +145,8 @@ fn print_help() {
     utils::log(utils::LogLevel::Log, "\t--gen-cc\t\tGenerate compile_commands.json");
     utils::log(utils::LogLevel::Log, "\t--clean-packages\tClean the package binaries");
     utils::log(utils::LogLevel::Log, "\t--update-packages\tUpdate the packages");
+    utils::log(utils::LogLevel::Log, "\t--restore-packages\tRestore the packages");
+    utils::log(utils::LogLevel::Log, "\t--version\t\tShow the version");
     utils::log(utils::LogLevel::Log, "Environment variables:");
     utils::log(utils::LogLevel::Log, "\tBUILDER_CPP_LOG_LEVEL");
     utils::log(utils::LogLevel::Log, "\t\tValid values are: Debug, Log, Info, Warn, Error");
