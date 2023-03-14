@@ -1,3 +1,5 @@
+//! This module contains the buiild related functions
+
 use std::fs;
 use std::sync::{Arc, Mutex};
 use crate::utils::{BuildConfig, TargetConfig, Package, log, LogLevel, self};
@@ -18,29 +20,35 @@ static OBJ_DIR: &str  = ".bld_cpp/obj_win32";
 static OBJ_DIR: &str  = ".bld_cpp/obj_linux";
 
 //Represents a target
-pub struct Target<'a> {
-    pub srcs: Vec<Src>,
-    pub build_config: &'a BuildConfig,
-    pub target_config: &'a TargetConfig,
+struct Target<'a> {
+    srcs: Vec<Src>,
+    build_config: &'a BuildConfig,
+    target_config: &'a TargetConfig,
     dependant_includes: HashMap<String, Vec<String>>,
-    pub bin_path: String,
-    pub hash_file_path: String,
+    bin_path: String,
+    hash_file_path: String,
     path_hash: HashMap<String, String>,
-    pub dependant_libs: Vec<Target<'a>>,
-    pub packages: &'a Vec<Package>,
+    dependant_libs: Vec<Target<'a>>,
+    packages: &'a Vec<Package>,
 }
 
 //Represents a source file
 //A single C or Cpp file
-pub struct Src {
-    pub path: String,
-    pub name: String,
-    pub obj_name: String,
-    pub bin_path: String,
-    pub dependant_includes: Vec<String>,
+struct Src {
+    path: String,
+    name: String,
+    obj_name: String,
+    bin_path: String,
+    dependant_includes: Vec<String>,
 }
 
 impl<'a> Target<'a> {
+    /// Creates a new target
+    /// # Arguments
+    /// * `build_config` - Build config
+    /// * `target_config` - Target config
+    /// * `targets` - All targets
+    /// * `packages` - All packages
     pub fn new(build_config: &'a BuildConfig, target_config: &'a TargetConfig, targets: &'a Vec<TargetConfig>, packages: &'a Vec<Package>) -> Self {
         let srcs = Vec::new();
         let dependant_includes: HashMap<String, Vec<String>> = HashMap::new();
@@ -120,6 +128,9 @@ impl<'a> Target<'a> {
         target
     }
 
+    /// Builds the target
+    /// # Arguments
+    /// * `gen_cc` - Generate compile_commands.json
     pub fn build(&mut self, gen_cc: bool ) {
         if !Path::new(".bld_cpp").exists() {
             std::fs::create_dir(".bld_cpp").unwrap_or_else(|why| {
@@ -213,6 +224,9 @@ impl<'a> Target<'a> {
         }
     }
 
+    /// Links the target
+    /// # Arguments
+    /// * `dep_targets` - The targets that this target depends on
     pub fn link(&self, dep_targets: &Vec<Target>) {
         let mut objs = Vec::new();
         if !Path::new(BUILD_DIR).exists() {
@@ -307,10 +321,7 @@ impl<'a> Target<'a> {
         }
     }
 
-    //-----------------
-    //  "command": "c++ -c -o ./obj_lin/app.o -I./Engine/src/include -g -Wall -Wunused -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/harfbuzz -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include -I/usr/include/sysprof-4 -pthread -std=c++17 -fPIC ./Engine/src/core/app.cpp",
-    //  "directory": "/mnt/f/C++/Nomu_Engine",
-    //  "file": "/mnt/f/C++/Nomu_Engine/Engine/src/core/app.cpp"
+    /// Generates the compile_commands.json file for a Src
     fn gen_cc(&self, src: &Src) -> String {
         let mut cc = String::new();
         cc.push_str("{\n");
@@ -438,7 +449,7 @@ impl<'a> Target<'a> {
         name.to_string()
     }
 
-    //retur the object file name for the given source file
+    //return the object file name for the given source file
     fn get_src_obj_name(&self, src_name: &str) -> String {
         let mut obj_name = String::new();
         obj_name.push_str(OBJ_DIR);
@@ -507,6 +518,9 @@ impl Src {
         }
     }
 
+    //returns a tuple of a bool and a string
+    //the bool is true if the source file needs to be built
+    //the string is the reason the source file needs to be built
     fn to_build(&self, path_hash: &HashMap<String, String>) -> (bool, String) {
         if !Path::new(&self.bin_path).exists() {
             let result = (true, format!("\tBinary does not exist: {}", &self.bin_path));
@@ -527,6 +541,7 @@ impl Src {
         result
     }
 
+    //builds the source file
     fn build(&self, build_config: &BuildConfig, target_config: &TargetConfig, dependant_libs: &Vec<Target>) {
         let mut cmd = String::new();
         cmd.push_str(&build_config.compiler);
@@ -585,6 +600,9 @@ impl Src {
     }
 }
 
+///Cleans the local targets
+/// # Arguments
+/// * `targets` - A vector of targets to clean
 pub fn clean(targets: &Vec<TargetConfig>) {
     if Path::new(".bld_cpp").exists() {
         fs::create_dir_all(".bld_cpp").unwrap_or_else(|why| {
@@ -639,6 +657,9 @@ pub fn clean(targets: &Vec<TargetConfig>) {
     }
 }
 
+///Cleans the downloaded packages
+/// # Arguments
+/// * `packages` - A vector of packages to clean
 pub fn clean_packages(packages: &Vec<Package>) {
     for pack in packages {
         for target in &pack.target_configs {
@@ -667,6 +688,11 @@ pub fn clean_packages(packages: &Vec<Package>) {
     }
 }
 
+///Builds all targets
+/// # Arguments
+/// * `build_config` - The local build configuration
+/// * `targets` - A vector of targets to build
+/// * `gen_cc` - Whether to generate a compile_commands.json file
 pub fn build(build_config: &BuildConfig, targets: &Vec<TargetConfig>, gen_cc: bool, packages: &Vec<Package>) {
     if !Path::new("./.bld_cpp").exists() {
         fs::create_dir(".bld_cpp").unwrap_or_else(|why| {
@@ -712,6 +738,12 @@ pub fn build(build_config: &BuildConfig, targets: &Vec<TargetConfig>, gen_cc: bo
     log(LogLevel::Info, "Build complete");
 }
 
+///Runs the exe target
+/// # Arguments
+/// * `build_config` - The local build configuration
+/// * `exe_target` - The exe target to run
+/// * `targets` - A vector of targets
+/// * `packages` - A vector of packages
 pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig, targets: &Vec<TargetConfig>, packages: &Vec<Package>) {
     let trgt = Target::new(build_config, exe_target, &targets, &packages);
     if !Path::new(&trgt.bin_path).exists() {

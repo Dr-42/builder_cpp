@@ -12,13 +12,12 @@ Write a config_win32.toml for windows and config_linux.toml for linux
 - [x] Multithreaded
 - [x] Can generate compile_commnds.json
 - [x] Auto add project libraries to other targets
+- [x] Get libraries as packages from github
 
-Sample file
+Sample file with a library and an executable
 ```
 [build]
 compiler = "g++"
-build_dir = "./Nomu_Engine/bin"
-obj_dir = "./Nomu_Engine/obj_win"
 
 [[targets]]
 name = "libengine"
@@ -37,10 +36,30 @@ cflags = "-g -Wall"
 libs = "-static-libstdc++"
 deps = ["libengine"]
 ```
+Sample file with an added package and an executable
+```
+[build]
+compiler = "g++"
+packages = ["Dr-42/Nomu_Engine, master"]
 
-All keys mentioned are mandatory.
+[[targets]]
+name = "main"
+src = "./src"
+include_dir = "./src"
+type = "exe"
+cflags = "-g -Wall "
+libs = ""
+deps = ["libengine"]
+```
 
-Install with cargo install
+Optional keys in toml are packages in build and deps in targets
+
+## Installation
+
+The tool requires cargo for installation
+```
+cargo install builder_cpp
+```
 For subcommands run with -h flag
 
 To see a real project being built with the tool

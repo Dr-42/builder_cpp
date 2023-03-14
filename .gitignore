@@ -1,8 +1,2 @@
 /target
-config_linux.toml
-config_win32.toml
-*.hash
-Gamon
-.cache/
-compile_commands.json
 

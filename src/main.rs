@@ -71,7 +71,7 @@ fn main() {
     }
 
     if args.contains(&"--version".to_string()) {
-        utils::log(utils::LogLevel::Log, "builder_cpp v0.3.1");
+        utils::log(utils::LogLevel::Log, "builder_cpp v0.4.0");
         std::process::exit(0);
     }
 
