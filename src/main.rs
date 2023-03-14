@@ -3,6 +3,16 @@ use std::env;
 use std::path::Path;
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.contains(&"--version".to_string()) {
+        utils::log(utils::LogLevel::Log, "builder_cpp v0.4.0");
+        std::process::exit(0);
+    }
+
+    if args.contains(&"--help".to_string()) || args.contains(&"-h".to_string()) {
+        print_help();
+        std::process::exit(0);
+    }
     #[cfg(target_os = "linux")]
     let (build_config, targets) = utils::parse_config("./config_linux.toml", true);
     #[cfg(target_os = "windows")]
@@ -68,16 +78,6 @@ fn main() {
             package.restore();
         }
         valid_arg = true;
-    }
-
-    if args.contains(&"--version".to_string()) {
-        utils::log(utils::LogLevel::Log, "builder_cpp v0.4.0");
-        std::process::exit(0);
-    }
-
-    if args.contains(&"--help".to_string()) || args.contains(&"-h".to_string()) {
-        print_help();
-        std::process::exit(0);
     }
 
     for (i, arg) in args.iter().enumerate() {
