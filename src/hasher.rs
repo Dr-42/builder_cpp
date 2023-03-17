@@ -4,20 +4,40 @@ use std::io::{Read, Write};
 use std::path::Path;
 use crate::utils::{log, LogLevel};
 use std::collections::HashMap;
-use md5;
-
-// Hashes a chain of bytes and returns the hash as a string.
-fn hash_u8(v: &[u8]) -> String {
-    let digest = md5::compute(v);
-    return format!("{:x}", digest);
-}
+use sha1::{Sha1, Digest};
 
 // Hashes a file and returns the hash as a string.
 fn hash_file(path: &str) -> String {
     let mut file = File::open(path).unwrap();
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents).unwrap();
-    return hash_u8(&contents);
+    const CHUNK_SIZE: usize = 1024 * 1024;
+
+    let mut limit = file.metadata().unwrap_or_else(|why| {
+        log(LogLevel::Error, &format!("Failed to get length for file: {}", path));
+        log(LogLevel::Error, &format!("Error: {}", why));
+        std::process::exit(1);
+    }).len();
+    let mut buffer = [0; CHUNK_SIZE];
+    let mut hasher = Sha1::new();
+
+    while limit > 0 {
+        let read_size = if limit < CHUNK_SIZE as u64 {
+            limit as usize
+        } else {
+            CHUNK_SIZE
+        };
+        let read = file.read(&mut buffer[0..read_size]).unwrap();
+        if read == 0 {
+            break;
+        }
+        limit -= read as u64;
+        hasher.update(&buffer[0..read]);
+    }
+    let result = hasher.finalize();
+    let mut hash = String::new();
+    for byte in result {
+        hash.push_str(&format!("{:02x}", byte));
+    }
+    return hash;
 }
 
 /// Returns the hash of a file if it exists in the path_hash.

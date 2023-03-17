@@ -1,6 +1,6 @@
 [package]
 name = "builder_cpp"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 description = "A simple build tool for building C and C++ applications"
 license = "MIT"
@@ -12,6 +12,6 @@ keywords = ["build", "build-tool", "C++", "toml", "C"]
 toml = "0.7.2"
 colored = "2.0.0"
 itertools = "0.10.5"
-md5 = "0.7.0"
+sha1 = "0.10.5"
 rayon = "1.7.0"
 indicatif = "0.17.3"

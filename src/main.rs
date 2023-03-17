@@ -5,7 +5,7 @@ use std::path::Path;
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.contains(&"--version".to_string()) {
-        utils::log(utils::LogLevel::Log, "builder_cpp v0.4.1");
+        utils::log(utils::LogLevel::Log, "builder_cpp v0.4.2");
         std::process::exit(0);
     }
 
