@@ -201,7 +201,7 @@ impl<'a> Target<'a> {
                     let mut num_complete = num_complete.lock().unwrap();
                     *num_complete += 1;
                     let progress_bar = progress_bar.lock().unwrap();
-                    let template = format!("    {}{}", "Compiling :".cyan(), "[{bar:40.white/white}] {pos}/{len} ({percent}%) {msg}[{elapsed_precise}] ");
+                    let template = format!("    {}{}", "Compiling :".cyan(), "[{bar:40.}] {pos}/{len} ({percent}%) {msg}[{elapsed_precise}] ");
                     progress_bar.set_style(ProgressStyle::with_template(&template)
                     .unwrap()
                     .progress_chars("=>-"));
