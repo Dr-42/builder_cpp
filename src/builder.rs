@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use crate::utils::{BuildConfig, TargetConfig, Package, log, LogLevel, self};
 use std::path::{Path, PathBuf};
 use std::io::{Read, Write};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use itertools::Itertools;
 use std::collections::HashMap;
 use crate::hasher;
@@ -759,21 +759,11 @@ pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig, targets: &Vec
     }
     log(LogLevel::Log, &format!("Running: {}", &trgt.bin_path));
     let mut cmd = std::process::Command::new(&trgt.bin_path);
-    let output = cmd.output().expect("failed to execute process");
-    if output.status.success() {
+    let output = cmd.stdout(Stdio::inherit()).stderr(Stdio::inherit()).output();
+    if !output.is_err() {
         log(LogLevel::Info, &format!("  Success: {}", &trgt.bin_path));
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        if stdout.len() > 0 {
-            log(LogLevel::Info, &format!("  Stdout: {}", stdout));
-        }
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        if stderr.len() > 0 {
-            log(LogLevel::Info, &format!("  Stderr: {}", stderr));
-        }
     } else {
         log(LogLevel::Error, &format!("  Error: {}", &trgt.bin_path));
-        log(LogLevel::Warn, &format!("  Stdout: {}", String::from_utf8_lossy(&output.stdout)));
-        log(LogLevel::Error, &format!("  Stderr: {}", String::from_utf8_lossy(&output.stderr)));
         std::process::exit(1);
     }
 }
