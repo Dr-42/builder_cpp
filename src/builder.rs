@@ -154,8 +154,8 @@ impl<'a> Target<'a> {
         let mut src_ccs = Vec::new();
         for src in &self.srcs {
             let (to_build, _) = src.to_build(&self.path_hash);
+            log(LogLevel::Debug, &format!("{}: {}", src.path, to_build));
             if to_build {
-                hasher::save_hash(&src.path, &mut self.path_hash);
                 to_link = true;
                 link_causer.push(&src.path);
                 srcs_needed += 1;
@@ -192,10 +192,14 @@ impl<'a> Target<'a> {
         ));
 
         let num_complete = Arc::new(Mutex::new(0));
+        let src_hash_to_update = Arc::new(Mutex::new(Vec::new()));
         self.srcs.par_iter().for_each(|src| {
             let (to_build, _message) = src.to_build(&self.path_hash);
+            log(LogLevel::Debug, &format!("{}: {}", src.path, to_build));
             if to_build {
                 src.build(self.build_config, self.target_config, &self.dependant_libs);
+                src_hash_to_update.lock().unwrap().push(src);
+                log(LogLevel::Info, &format!("Compiled: {}", src.path));
                 let log_level = std::env::var("BUILDER_CPP_LOG_LEVEL").unwrap_or("".to_string());
                 if !(log_level == "Info" || log_level == "Debug"){
                     let mut num_complete = num_complete.lock().unwrap();
@@ -209,6 +213,9 @@ impl<'a> Target<'a> {
                 }
             }
         });
+        for src in src_hash_to_update.lock().unwrap().iter() {
+            hasher::save_hash(&src.path, &mut self.path_hash);
+        }
         if to_link {
             log(LogLevel::Log, "Linking: Since source files were compiled");
             for src in link_causer {
