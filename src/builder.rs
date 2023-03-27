@@ -346,6 +346,10 @@ impl<'a> Target<'a> {
         cc.push_str(" -I");
         cc.push_str(&self.target_config.include_dir);
 
+        for lib in &self.dependant_libs {
+            cc.push_str(" -I");
+            cc.push_str(&lib.target_config.include_dir);
+        }
         for pack in self.packages {
             for tgtg in &pack.target_configs {
                 cc.push_str(" -I");
