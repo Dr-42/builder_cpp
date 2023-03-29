@@ -26,7 +26,6 @@ fn main() {
         //get project name from the next argument
         let project_name = args.iter().skip_while(|x| x != &&"--init".to_string()).nth(1).unwrap().to_string();
         //Create the project directory
-        std::fs::create_dir(&project_name).unwrap();
         builder::init(&project_name);
         std::process::exit(0);
     }

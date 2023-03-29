@@ -774,6 +774,21 @@ pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig, targets: &Vec
 
 ///Initialises a new project in the current directory
 pub fn init(project_name: &str) {
+    if Path::new(project_name).exists() {
+        log(LogLevel::Error, &format!("{} already exists", project_name));
+        log(LogLevel::Error, "Cannot initialise project");
+        std::process::exit(1);
+    }
+    //initialise git repo in project directory
+    let mut cmd = std::process::Command::new("git");
+    cmd.arg("init").arg(project_name);
+    let output = cmd.output();
+    if output.is_err() {
+        log(LogLevel::Error, "Could not initialise git repo");
+        log(LogLevel::Error, &format!("{}", output.err().unwrap()));
+        std::process::exit(1);
+    }
+    
     #[cfg(target_os = "windows")]
     let config_file = project_name.to_owned() + "/config_win32.toml";
     #[cfg(target_os = "linux")]
@@ -835,5 +850,23 @@ pub fn init(project_name: &str) {
             std::process::exit(1);
         });
     }
+
+    let gitignore_path = project_name.to_owned() + "/.gitignore";
+    if !Path::new(&gitignore_path).exists() {
+        let mut gitignore_file = fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&gitignore_path)
+            .unwrap_or_else(|why| {
+                log(LogLevel::Error, &format!("Could not create .gitignore: {}", why));
+                std::process::exit(1);
+            });
+        gitignore_file.write_all(b".bld_cpp\ncompile_commands.json").unwrap_or_else(|why| {
+            log(LogLevel::Error, &format!("Could not write to .gitignore: {}", why));
+            std::process::exit(1);
+        });
+    }
+
+
     log(LogLevel::Log, &format!("Project {} initialised", project_name));
 }
