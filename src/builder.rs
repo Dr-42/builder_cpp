@@ -771,3 +771,65 @@ pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig, targets: &Vec
         std::process::exit(1);
     }
 }
+
+///Initialises a new project in the current directory
+pub fn init() {
+    #[cfg(target_os = "windows")]
+    let config_file = "config_win32.toml";
+    #[cfg(target_os = "linux")]
+    let config_file = "config_linux.toml";
+
+    if Path::new(config_file).exists() {
+        log(LogLevel::Error, &format!("{} already exists", config_file));
+        log(LogLevel::Error, "Cannot initialise project");
+        std::process::exit(1);
+    }
+    
+    let mut config_file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(config_file)
+        .unwrap_or_else(|why| {
+            log(LogLevel::Error, &format!("Could not create config file: {}", why));
+            std::process::exit(1);
+        });
+
+    let sample_config = "[build]\ncompiler = \"g++\"\n\n[[targets]]\nname = \"main\"\nsrc = \"./src/\"\ninclude_dir = \"./src/include/\"\ntype = \"exe\"\ncflags = \"-g -Wall\"\nlibs = \"\"\ndeps = [\"\"]\n";
+
+    config_file.write_all(sample_config.as_bytes()).unwrap_or_else(|why| {
+        log(LogLevel::Error, &format!("Could not write to config file: {}", why));
+        std::process::exit(1);
+    });
+    
+    //Create src and src/include directories
+    if !Path::new("./src").exists() {
+        fs::create_dir("./src").unwrap_or_else(|why| {
+            log(LogLevel::Error, &format!("Could not create src directory: {}", why));
+            std::process::exit(1);
+        });
+    }
+    if !Path::new("./src/include").exists() {
+        fs::create_dir("./src/include").unwrap_or_else(|why| {
+            log(LogLevel::Error, &format!("Could not create src/include directory: {}", why));
+            std::process::exit(1);
+        });
+    }
+
+    //Create main.cpp
+    if !Path::new("./src/main.cpp").exists() {
+        let mut main_file = fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open("./src/main.cpp")
+            .unwrap_or_else(|why| {
+                log(LogLevel::Error, &format!("Could not create main.cpp: {}", why));
+                std::process::exit(1);
+            });
+        main_file.write_all(b"#include <iostream>\n\nint main() {\n\tstd::cout << \"Hello World!\" << std::endl;\n\treturn 0;\n}").unwrap_or_else(|why| {
+            log(LogLevel::Error, &format!("Could not write to main.cpp: {}", why));
+            std::process::exit(1);
+        });
+    }
+
+    log(LogLevel::Info, "Initialised project");
+}

@@ -2,10 +2,12 @@ use builder_cpp::{utils, builder};
 use std::env;
 use std::path::Path;
 
+static VERSION: &str = env!("CARGO_PKG_VERSION");
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.contains(&"--version".to_string()) {
-        utils::log(utils::LogLevel::Log, "builder_cpp v0.4.3");
+        utils::log(utils::LogLevel::Log, &format!("builder_cpp v{}", VERSION));
         std::process::exit(0);
     }
 
@@ -13,6 +15,13 @@ fn main() {
         print_help();
         std::process::exit(0);
     }
+
+    if args.contains(&"--init".to_string()) {
+        utils::log(utils::LogLevel::Log, "Initializing project...");
+        builder::init();
+        std::process::exit(0);
+    }
+
     #[cfg(target_os = "linux")]
     let (build_config, targets) = utils::parse_config("./config_linux.toml", true);
     #[cfg(target_os = "windows")]
