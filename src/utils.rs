@@ -96,7 +96,7 @@ pub struct TargetConfig {
 }
 
 impl TargetConfig {
-    /// Returns a vec of all fiilenames ending in .cpp or .c in the src directory
+    /// Returns a vec of all filenames ending in .cpp or .c in the src directory
     /// # Arguments
     /// * `path` - The path to the src directory
     fn get_src_names(path: &str) -> Vec<String> {
@@ -201,27 +201,27 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
 
         let target_config = TargetConfig {
             name: target["name"].as_str().unwrap_or_else(|| {
-                log(LogLevel::Error, "Could not find name in confiig file");
+                log(LogLevel::Error, "Could not find name in config file");
                 std::process::exit(1);
             }).to_string(),
             src: target["src"].as_str().unwrap_or_else(|| {
-                log(LogLevel::Error, "Could not find src in confiig file");
+                log(LogLevel::Error, "Could not find src in config file");
                 std::process::exit(1);
             }).to_string(),
             include_dir: target["include_dir"].as_str().unwrap_or_else(|| {
-                log(LogLevel::Error, "Could not find include_dir in confiig file");
+                log(LogLevel::Error, "Could not find include_dir in config file");
                 std::process::exit(1);
             }).to_string(),
             typ: target["type"].as_str().unwrap_or_else(|| {
-                log(LogLevel::Error, "Could not find type in confiig file");
+                log(LogLevel::Error, "Could not find type in config file");
                 std::process::exit(1);
             }).to_string(),
             cflags: target["cflags"].as_str().unwrap_or_else(|| {
-                log(LogLevel::Error, "Could not find cflags in confiig file");
+                log(LogLevel::Error, "Could not find cflags in config file");
                 std::process::exit(1);
             }).to_string(),
             libs: target["libs"].as_str().unwrap_or_else(|| {
-                log(LogLevel::Error, "Could not find libs in confiig file");
+                log(LogLevel::Error, "Could not find libs in config file");
                 std::process::exit(1);
             }).to_string(),
             deps,
@@ -345,7 +345,7 @@ impl Package {
     }
 
     /// Parses a package contained in a folder
-    /// The folder must contain a config tiiml file
+    /// The folder must contain a config timl file
     /// # Arguments
     /// * `path` - The path to the folder containing the package
     pub fn parse_packages(path: &str) -> Vec<Package> {

@@ -2,20 +2,35 @@
 
 A simple build tool for building C and C++ applications
 
-The tool is still in development.
+The tool is still in development. Do not use for production code.
 
-## Usage
-Write a config_win32.toml for windows and config_linux.toml for linux
+## Installation
+
+The tool requires cargo for installation
+```console
+cargo install builder_cpp
+```
+For subcommands run with -h flag
 
 ## Features
 
+- [x] Create new project
 - [x] Multithreaded
 - [x] Can generate compile_commnds.json
 - [x] Auto add project libraries to other targets
 - [x] Get libraries as packages from github
 
-Sample file with a library and an executable
+## Usage
+Write a config_win32.toml for windows and config_linux.toml for linux
+
+To create a new project 
+```console
+builder_cpp --init <project-name>
 ```
+
+Sample file with a library and an executable
+
+```toml
 [build]
 compiler = "g++"
 
@@ -37,7 +52,7 @@ libs = "-static-libstdc++"
 deps = ["libengine"]
 ```
 Sample file with an added package and an executable
-```
+```toml
 [build]
 compiler = "g++"
 packages = ["Dr-42/Nomu_Engine, master"]
@@ -53,14 +68,6 @@ deps = ["libengine"]
 ```
 
 Optional keys in toml are packages in build and deps in targets
-
-## Installation
-
-The tool requires cargo for installation
-```
-cargo install builder_cpp
-```
-For subcommands run with -h flag
 
 To see a real project being built with the tool
 	[Nomu_Engine](https://github.com/Dr-42/Nomu_Engine)
