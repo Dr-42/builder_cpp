@@ -6,6 +6,11 @@ static VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+    if args.len() == 1 {
+        print_help();
+        std::process::exit(1);
+    }
+
     if args.contains(&"--version".to_string()) {
         utils::log(utils::LogLevel::Log, &format!("builder_cpp v{}", VERSION));
         std::process::exit(0);
@@ -17,8 +22,12 @@ fn main() {
     }
 
     if args.contains(&"--init".to_string()) {
-        utils::log(utils::LogLevel::Log, "Initializing project...");
-        builder::init();
+        utils::log(utils::LogLevel::Log, "Initializing project...");        
+        //get project name from the next argument
+        let project_name = args.iter().skip_while(|x| x != &&"--init".to_string()).nth(1).unwrap().to_string();
+        //Create the project directory
+        std::fs::create_dir(&project_name).unwrap();
+        builder::init(&project_name);
         std::process::exit(0);
     }
 
@@ -135,14 +144,14 @@ fn main() {
         }
     }
     if !valid_arg {
-        utils::log(utils::LogLevel::Log, "No valid arguments specified ");
         print_help();
+        utils::log(utils::LogLevel::Log, "No valid arguments specified ");
         std::process::exit(1);
     }
 }
 
 fn print_help() {
-    utils::log(utils::LogLevel::Log, "Usage: $ builder_cpp [options]");
+    utils::log(utils::LogLevel::Log, "Usage: $ builder_cpp <options>");
     utils::log(utils::LogLevel::Log, "Options:");
     utils::log(utils::LogLevel::Log, "\t-c\t\tClean the build directory");
     utils::log(utils::LogLevel::Log, "\t-r\t\tRun the executable");
@@ -151,6 +160,7 @@ fn print_help() {
     utils::log(utils::LogLevel::Log, "");
 
     utils::log(utils::LogLevel::Log, "\t--help\t\t\tShow this help message");
+    utils::log(utils::LogLevel::Log, "\t--init <project name>\tInitialize the project");
     utils::log(utils::LogLevel::Log, "\t--gen-cc\t\tGenerate compile_commands.json");
     utils::log(utils::LogLevel::Log, "\t--clean-packages\tClean the package binaries");
     utils::log(utils::LogLevel::Log, "\t--update-packages\tUpdate the packages");

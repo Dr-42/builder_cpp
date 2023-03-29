@@ -773,13 +773,13 @@ pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig, targets: &Vec
 }
 
 ///Initialises a new project in the current directory
-pub fn init() {
+pub fn init(project_name: &str) {
     #[cfg(target_os = "windows")]
-    let config_file = "config_win32.toml";
+    let config_file = project_name.to_owned() + "/config_win32.toml";
     #[cfg(target_os = "linux")]
-    let config_file = "config_linux.toml";
+    let config_file = project_name.to_owned() + "/config_linux.toml";
 
-    if Path::new(config_file).exists() {
+    if Path::new(&config_file).exists() {
         log(LogLevel::Error, &format!("{} already exists", config_file));
         log(LogLevel::Error, "Cannot initialise project");
         std::process::exit(1);
@@ -801,26 +801,31 @@ pub fn init() {
         std::process::exit(1);
     });
     
+    let src_dir = project_name.to_owned() + "/src";
+    let include_dir = project_name.to_owned() + "/src/include";
+
     //Create src and src/include directories
-    if !Path::new("./src").exists() {
-        fs::create_dir("./src").unwrap_or_else(|why| {
+    if !Path::new(&src_dir).exists() {
+        fs::create_dir(&src_dir).unwrap_or_else(|why| {
+            log(LogLevel::Warn , &format!("Project name {}", project_name));
             log(LogLevel::Error, &format!("Could not create src directory: {}", why));
             std::process::exit(1);
         });
     }
-    if !Path::new("./src/include").exists() {
-        fs::create_dir("./src/include").unwrap_or_else(|why| {
+    if !Path::new(&include_dir).exists() {
+        fs::create_dir(&include_dir).unwrap_or_else(|why| {
             log(LogLevel::Error, &format!("Could not create src/include directory: {}", why));
             std::process::exit(1);
         });
     }
 
     //Create main.cpp
-    if !Path::new("./src/main.cpp").exists() {
+    let main_path = src_dir.to_owned() + "/main.cpp";
+    if !Path::new(&main_path).exists() {
         let mut main_file = fs::OpenOptions::new()
             .write(true)
             .create(true)
-            .open("./src/main.cpp")
+            .open(&main_path)
             .unwrap_or_else(|why| {
                 log(LogLevel::Error, &format!("Could not create main.cpp: {}", why));
                 std::process::exit(1);
@@ -830,6 +835,5 @@ pub fn init() {
             std::process::exit(1);
         });
     }
-
-    log(LogLevel::Info, "Initialised project");
+    log(LogLevel::Log, &format!("Project {} initialised", project_name));
 }
