@@ -763,7 +763,8 @@ pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig, targets: &Vec
     }
     log(LogLevel::Log, &format!("Running: {}", &trgt.bin_path));
     let mut cmd = std::process::Command::new(&trgt.bin_path);
-    let output = cmd.stdout(Stdio::inherit()).stderr(Stdio::inherit()).output();
+    cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit()).stderr(Stdio::inherit());
+    let output = cmd.output();
     if !output.is_err() {
         log(LogLevel::Info, &format!("  Success: {}", &trgt.bin_path));
     } else {
