@@ -25,7 +25,12 @@ Write a config_win32.toml for windows and config_linux.toml for linux
 
 To create a new project 
 ```console
-builder_cpp --init <project-name>
+builder_cpp --init <project-name> [--c|--cpp]
+```
+
+For help
+```console
+builder_cpp --help
 ```
 
 Sample file with a library and an executable
