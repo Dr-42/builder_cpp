@@ -24,9 +24,31 @@ fn main() {
     if args.contains(&"--init".to_string()) {
         utils::log(utils::LogLevel::Log, "Initializing project...");        
         //get project name from the next argument
+        if args.len() < 3 {
+            utils::log(utils::LogLevel::Error, "No project name specified");
+            std::process::exit(1);
+        }
+        if args.len() > 4 {
+            utils::log(utils::LogLevel::Error, "Too many arguments");
+            print_help();
+            std::process::exit(1);
+        }
         let project_name = args.iter().skip_while(|x| x != &&"--init".to_string()).nth(1).unwrap().to_string();
+        //Check if c or cpp
+        let mut is_c = false;
+        if args.contains(&"--c".to_string()) {
+            utils::log(utils::LogLevel::Log, "Creating C project...");
+            is_c = true;
+        }
+        if args.contains(&"--cpp".to_string()) {
+            utils::log(utils::LogLevel::Log, "Creating C++ project...");
+            is_c = false;
+        }
+        if args.len() == 3 {
+            utils::log(utils::LogLevel::Log, "No language specified, defaulting to C++");
+        }
         //Create the project directory
-        builder::init(&project_name);
+        builder::init(&project_name, is_c);
         std::process::exit(0);
     }
 
@@ -159,7 +181,7 @@ fn print_help() {
     utils::log(utils::LogLevel::Log, "");
 
     utils::log(utils::LogLevel::Log, "\t--help\t\t\tShow this help message");
-    utils::log(utils::LogLevel::Log, "\t--init <project name>\tInitialize the project");
+    utils::log(utils::LogLevel::Log, "\t--init <project name> [--c|--cpp]\tInitialize the project. Default is C++");
     utils::log(utils::LogLevel::Log, "\t--gen-cc\t\tGenerate compile_commands.json");
     utils::log(utils::LogLevel::Log, "\t--clean-packages\tClean the package binaries");
     utils::log(utils::LogLevel::Log, "\t--update-packages\tUpdate the packages");

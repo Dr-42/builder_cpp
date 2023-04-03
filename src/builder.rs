@@ -774,7 +774,7 @@ pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig, targets: &Vec
 }
 
 ///Initialises a new project in the current directory
-pub fn init(project_name: &str) {
+pub fn init(project_name: &str, is_c: bool) {
     if Path::new(project_name).exists() {
         log(LogLevel::Error, &format!("{} already exists", project_name));
         log(LogLevel::Error, "Cannot initialise project");
@@ -810,7 +810,11 @@ pub fn init(project_name: &str) {
             std::process::exit(1);
         });
 
-    let sample_config = "[build]\ncompiler = \"g++\"\n\n[[targets]]\nname = \"main\"\nsrc = \"./src/\"\ninclude_dir = \"./src/include/\"\ntype = \"exe\"\ncflags = \"-g -Wall\"\nlibs = \"\"\ndeps = [\"\"]\n";
+    let mut sample_config = "[build]\ncompiler = \"g++\"\n\n[[targets]]\nname = \"main\"\nsrc = \"./src/\"\ninclude_dir = \"./src/include/\"\ntype = \"exe\"\ncflags = \"-g -Wall\"\nlibs = \"\"\ndeps = [\"\"]\n";
+
+    if is_c {
+        sample_config = "[build]\ncompiler = \"gcc\"\n\n[[targets]]\nname = \"main\"\nsrc = \"./src/\"\ninclude_dir = \"./src/include/\"\ntype = \"exe\"\ncflags = \"-g -Wall\"\nlibs = \"\"\ndeps = [\"\"]\n";
+    }
 
     config_file.write_all(sample_config.as_bytes()).unwrap_or_else(|why| {
         log(LogLevel::Error, &format!("Could not write to config file: {}", why));
@@ -836,7 +840,10 @@ pub fn init(project_name: &str) {
     }
 
     //Create main.cpp
-    let main_path = src_dir.to_owned() + "/main.cpp";
+    let mut main_path = src_dir.to_owned() + "/main.cpp";
+    if is_c {
+        main_path = src_dir.to_owned() + "/main.c";
+    }
     if !Path::new(&main_path).exists() {
         let mut main_file = fs::OpenOptions::new()
             .write(true)
@@ -846,10 +853,17 @@ pub fn init(project_name: &str) {
                 log(LogLevel::Error, &format!("Could not create main.cpp: {}", why));
                 std::process::exit(1);
             });
-        main_file.write_all(b"#include <iostream>\n\nint main() {\n\tstd::cout << \"Hello World!\" << std::endl;\n\treturn 0;\n}").unwrap_or_else(|why| {
-            log(LogLevel::Error, &format!("Could not write to main.cpp: {}", why));
-            std::process::exit(1);
-        });
+        if is_c {
+            main_file.write_all(b"#include <stdio.h>\n\nint main() {\n\tprintf(\"Hello World!\\n\");\n\treturn 0;\n}").unwrap_or_else(|why| {
+                log(LogLevel::Error, &format!("Could not write to main.c: {}", why));
+                std::process::exit(1);
+            });
+        } else {
+            main_file.write_all(b"#include <iostream>\n\nint main() {\n\tstd::cout << \"Hello World!\" << std::endl;\n\treturn 0;\n}").unwrap_or_else(|why| {
+                log(LogLevel::Error, &format!("Could not write to main.cpp: {}", why));
+                std::process::exit(1);
+            });
+        }
     }
 
     let gitignore_path = project_name.to_owned() + "/.gitignore";
