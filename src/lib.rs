@@ -65,6 +65,8 @@
 //!deps = ["libengine"]
 //!```
 
+/// Contains code that handles various binary flags
+pub mod bin_flags;
 /// Contains code to build projects
 pub mod builder;
 /// Contains logger and config parser
