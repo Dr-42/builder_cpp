@@ -191,6 +191,7 @@ fn print_help() {
 
     utils::log(utils::LogLevel::Log, "\t--help\t\t\tShow this help message");
     utils::log(utils::LogLevel::Log, "\t--init <project name> [--c|--cpp]\tInitialize the project. Default is C++");
+    utils::log(utils::LogLevel::Log, "\t--bin-args <args>\tPass arguments to the executable");
     utils::log(utils::LogLevel::Log, "\t--gen-cc\t\tGenerate compile_commands.json");
     utils::log(utils::LogLevel::Log, "\t--clean-packages\tClean the package binaries");
     utils::log(utils::LogLevel::Log, "\t--update-packages\tUpdate the packages");
