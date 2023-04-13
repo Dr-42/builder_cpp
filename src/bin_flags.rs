@@ -155,7 +155,7 @@ pub fn build(build_config: &BuildConfig, targets: &Vec<TargetConfig>, gen_cc: bo
 /// * `exe_target` - The exe target to run
 /// * `targets` - A vector of targets
 /// * `packages` - A vector of packages
-pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig, targets: &Vec<TargetConfig>, packages: &Vec<Package>) {
+pub fn run (bin_args: Option<Vec<&str>>, build_config: &BuildConfig, exe_target: &TargetConfig, targets: &Vec<TargetConfig>, packages: &Vec<Package>) {
     let trgt = Target::new(build_config, exe_target, &targets, &packages);
     if !Path::new(&trgt.bin_path).exists() {
         log(LogLevel::Error, &format!("Could not find binary: {}", &trgt.bin_path));
@@ -163,6 +163,11 @@ pub fn run (build_config: &BuildConfig, exe_target: &TargetConfig, targets: &Vec
     }
     log(LogLevel::Log, &format!("Running: {}", &trgt.bin_path));
     let mut cmd = std::process::Command::new(&trgt.bin_path);
+    if bin_args.is_some() {
+        for arg in bin_args.unwrap() {
+            cmd.arg(arg);
+        }
+    }
     cmd.stdin(Stdio::inherit()).stdout(Stdio::inherit()).stderr(Stdio::inherit());
     let output = cmd.output();
     if !output.is_err() {
