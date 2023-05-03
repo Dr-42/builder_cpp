@@ -84,6 +84,7 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
     let mut gen_cc = false;
+    let mut gen_vsc = false;
     let mut valid_arg = false;
     if args.contains(&"--gen-cc".to_string()) {
         gen_cc = true;
@@ -93,6 +94,25 @@ fn main() {
         } else {
             fs::remove_file(Path::new("./compile_commands.json")).unwrap();
             fs::File::create(Path::new("./compile_commands.json")).unwrap();
+        }
+        valid_arg = true;
+    }
+
+    if args.contains(&"--gen-vsc".to_string()) {
+        gen_vsc = true;
+        use std::fs;
+        if !Path::new("./.vscode").exists() {
+            fs::create_dir(Path::new("./.vscode")).unwrap();
+        } else {
+            fs::remove_dir_all(Path::new("./.vscode")).unwrap();
+            fs::create_dir(Path::new("./.vscode")).unwrap();
+        }
+
+        if !Path::new("./.vscode/c_cpp_properties.json").exists() {
+            fs::File::create(Path::new("./.vscode/c_cpp_properties.json")).unwrap();
+        } else {
+            fs::remove_file(Path::new("./.vscode/c_cpp_properties.json")).unwrap();
+            fs::File::create(Path::new("./.vscode/c_cpp_properties.json")).unwrap();
         }
         valid_arg = true;
     }
@@ -158,7 +178,7 @@ fn main() {
             }
             if arg.contains('b') {
                 utils::log(utils::LogLevel::Log, "Building project...");
-                bin_flags::build(&build_config, &targets, gen_cc, &packages);
+                bin_flags::build(&build_config, &targets, gen_cc, gen_vsc, &packages);
                 valid_arg = true;
             }
             if arg.contains('r') {
@@ -193,6 +213,7 @@ fn print_help() {
     utils::log(utils::LogLevel::Log, "\t--init <project name> [--c|--cpp]\tInitialize the project. Default is C++");
     utils::log(utils::LogLevel::Log, "\t--bin-args <args>\tPass arguments to the executable");
     utils::log(utils::LogLevel::Log, "\t--gen-cc\t\tGenerate compile_commands.json");
+    utils::log(utils::LogLevel::Log, "\t--gen-vsc\t\tGenerate .vscode directory");
     utils::log(utils::LogLevel::Log, "\t--clean-packages\tClean the package binaries");
     utils::log(utils::LogLevel::Log, "\t--update-packages\tUpdate the packages");
     utils::log(utils::LogLevel::Log, "\t--restore-packages\tRestore the packages");
