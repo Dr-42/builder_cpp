@@ -103,9 +103,6 @@ fn main() {
         use std::fs;
         if !Path::new("./.vscode").exists() {
             fs::create_dir(Path::new("./.vscode")).unwrap();
-        } else {
-            fs::remove_dir_all(Path::new("./.vscode")).unwrap();
-            fs::create_dir(Path::new("./.vscode")).unwrap();
         }
 
         if !Path::new("./.vscode/c_cpp_properties.json").exists() {
