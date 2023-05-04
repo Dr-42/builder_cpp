@@ -30,7 +30,7 @@ dependencies = [
 
 [[package]]
 name = "builder_cpp"
-version = "0.4.11"
+version = "0.4.12"
 dependencies = [
  "colored",
  "indicatif",

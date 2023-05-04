@@ -139,6 +139,7 @@ pub fn build(build_config: &BuildConfig, targets: &Vec<TargetConfig>, gen_cc: bo
         let inc_dirs : Vec<String> = targets.iter().map(|t| t.include_dir.clone()).collect();
         let compiler_path : String = build_config.compiler.clone();
 
+        #[cfg(target_os = "windows")]
         let compiler_path = Command::new("sh")
             .arg("-c")
             .arg(&format!("where {}", &compiler_path))
@@ -146,6 +147,7 @@ pub fn build(build_config: &BuildConfig, targets: &Vec<TargetConfig>, gen_cc: bo
             .expect("failed to execute process")
             .stdout;
 
+        #[cfg(target_os = "windows")]
         //Pick the first compiler path
         let compiler_path = String::from_utf8(compiler_path).unwrap()
             .split("\n").collect::<Vec<&str>>()[0].to_string()
@@ -177,6 +179,17 @@ r#"{{
             inc_dirs.join("\",\n\t\t\t\t\""),
             compiler_path
         );
+
+        #[cfg(target_os = "linux")]
+        let compiler_path = Command::new("sh")
+            .arg("-c")
+            .arg(&format!("which {}", &compiler_path))
+            .output()
+            .expect("failed to execute process")
+            .stdout;
+
+        #[cfg(target_os = "linux")]
+        let compiler_path = String::from_utf8(compiler_path).unwrap();
 
         #[cfg(target_os = "linux")]
         let vsc_json = format!(

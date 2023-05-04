@@ -17,6 +17,7 @@ For subcommands run with -h flag
 - [x] Create new project
 - [x] Multithreaded
 - [x] Can generate compile_commands.json
+- [x] Can generate .vscode/c_cpp_properties.json
 - [x] Auto add project libraries to other targets
 - [x] Get libraries as packages from github
 
