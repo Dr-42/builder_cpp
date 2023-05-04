@@ -189,7 +189,7 @@ r#"{{
             .stdout;
 
         #[cfg(target_os = "linux")]
-        let compiler_path = String::from_utf8(compiler_path).unwrap();
+        let compiler_path = String::from_utf8(compiler_path).unwrap().replace('\n', "");
 
         #[cfg(target_os = "linux")]
         let vsc_json = format!(
@@ -213,7 +213,7 @@ r#"{{
     ],
     "version": 4
 }}"#,
-            inc_dirs.join("\n\t\t\t\t\t\t\t"),
+            inc_dirs.join("\",\n\t\t\t\t\""),
             compiler_path
         );
 
