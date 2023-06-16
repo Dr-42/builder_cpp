@@ -193,11 +193,15 @@ impl<'a> Target<'a> {
 
         let num_complete = Arc::new(Mutex::new(0));
         let src_hash_to_update = Arc::new(Mutex::new(Vec::new()));
+        let warns = Arc::new(Mutex::new(Vec::new()));
         self.srcs.par_iter().for_each(|src| {
             let (to_build, _message) = src.to_build(&self.path_hash);
             log(LogLevel::Debug, &format!("{}: {}", src.path, to_build));
             if to_build {
-                src.build(self.build_config, self.target_config, &self.dependant_libs);
+                let warn = src.build(self.build_config, self.target_config, &self.dependant_libs);
+                if warn.is_some() {
+                    warns.lock().unwrap().push(warn.unwrap());
+                }
                 src_hash_to_update.lock().unwrap().push(src);
                 log(LogLevel::Info, &format!("Compiled: {}", src.path));
                 let log_level = std::env::var("BUILDER_CPP_LOG_LEVEL").unwrap_or("".to_string());
@@ -213,6 +217,14 @@ impl<'a> Target<'a> {
                 }
             }
         });
+        let warns = warns.lock().unwrap();
+        if warns.len() > 0 {
+            log(LogLevel::Warn, "Warnings emitted during build:");
+            for warn in warns.iter() {
+                log(LogLevel::Warn, &format!("\t{}", warn));
+            }
+        }
+
         for src in src_hash_to_update.lock().unwrap().iter() {
             hasher::save_hash(&src.path, &mut self.path_hash);
         }
@@ -553,7 +565,7 @@ impl Src {
     }
 
     //builds the source file
-    fn build(&self, build_config: &BuildConfig, target_config: &TargetConfig, dependant_libs: &Vec<Target>) {
+    fn build(&self, build_config: &BuildConfig, target_config: &TargetConfig, dependant_libs: &Vec<Target>) -> Option<String> {
         let mut cmd = String::new();
         cmd.push_str(&build_config.compiler);
         cmd.push_str(" -c ");
@@ -599,8 +611,9 @@ impl Src {
             }
             let stderr = String::from_utf8_lossy(&output.stderr);
             if stderr.len() > 0 {
-                log(LogLevel::Info, &format!("  Stderr: {}", stderr));
+                return Some(stderr.to_string());
             }
+            return None;
         } else {
             log(LogLevel::Error, &format!("  Error: {}", &self.name));
             log(LogLevel::Error, &format!("  Command: {}", &cmd));

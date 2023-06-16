@@ -34,6 +34,29 @@ For help
 builder_cpp --help
 ```
 
+The help command will show you the following
+```sh
+[LOG] Usage: $ builder_cpp <options>
+[LOG] Options:
+[LOG]   -c              Clean the build directory
+[LOG]   -r              Run the executable
+[LOG]   -b              Build the project
+[LOG]   -h              Show this help message
+[LOG]
+[LOG]   --help                  Show this help message
+[LOG]   --init <project name> [--c|--cpp]       Initialize the project. Default is C++
+[LOG]   --bin-args <args>       Pass arguments to the executable
+[LOG]   --gen-cc                Generate compile_commands.json
+[LOG]   --gen-vsc               Generate .vscode directory
+[LOG]   --clean-packages        Clean the package binaries
+[LOG]   --update-packages       Update the packages
+[LOG]   --restore-packages      Restore the packages
+[LOG]   --version               Show the version
+[LOG] Environment variables:
+[LOG]   BUILDER_CPP_LOG_LEVEL
+[LOG]           Valid values are: Debug, Log, Info, Warn, Error
+```
+
 Sample file with a library and an executable
 
 ```toml
