@@ -1,23 +1,23 @@
 //! This module contains the buiild related functions
 
-use std::fs;
-use std::sync::{Arc, Mutex};
-use crate::utils::{BuildConfig, TargetConfig, Package, log, LogLevel, self};
-use std::path::{Path, PathBuf};
-use std::io::{Read, Write};
-use std::process::Command;
-use itertools::Itertools;
-use std::collections::HashMap;
 use crate::hasher;
-use rayon::prelude::*;
-use indicatif::{ProgressBar, ProgressStyle};
+use crate::utils::{self, log, BuildConfig, LogLevel, Package, TargetConfig};
 use colored::Colorize;
+use indicatif::{ProgressBar, ProgressStyle};
+use itertools::Itertools;
+use rayon::prelude::*;
+use std::collections::HashMap;
+use std::fs;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::sync::{Arc, Mutex};
 
-static BUILD_DIR : &str = ".bld_cpp/bin";
+static BUILD_DIR: &str = ".bld_cpp/bin";
 #[cfg(target_os = "windows")]
-static OBJ_DIR: &str  = ".bld_cpp/obj_win32";
+static OBJ_DIR: &str = ".bld_cpp/obj_win32";
 #[cfg(target_os = "linux")]
-static OBJ_DIR: &str  = ".bld_cpp/obj_linux";
+static OBJ_DIR: &str = ".bld_cpp/obj_linux";
 
 //Represents a target
 pub struct Target<'a> {
@@ -49,10 +49,15 @@ impl<'a> Target<'a> {
     /// * `target_config` - Target config
     /// * `targets` - All targets
     /// * `packages` - All packages
-    pub fn new(build_config: &'a BuildConfig, target_config: &'a TargetConfig, targets: &'a Vec<TargetConfig>, packages: &'a Vec<Package>) -> Self {
+    pub fn new(
+        build_config: &'a BuildConfig,
+        target_config: &'a TargetConfig,
+        targets: &'a Vec<TargetConfig>,
+        packages: &'a Vec<Package>,
+    ) -> Self {
         let srcs = Vec::new();
         let dependant_includes: HashMap<String, Vec<String>> = HashMap::new();
-        
+
         let mut bin_path = String::new();
         bin_path.push_str(BUILD_DIR);
         bin_path.push_str("/");
@@ -74,7 +79,7 @@ impl<'a> Target<'a> {
         let hash_file_path = format!(".bld_cpp/{}.win32.hash", &target_config.name);
         #[cfg(target_os = "linux")]
         let hash_file_path = format!(".bld_cpp/{}.linux.hash", &target_config.name);
-        
+
         let path_hash = hasher::load_hashes_from_file(&hash_file_path);
         let mut dependant_libs = Vec::new();
         for dependant_lib in &target_config.deps {
@@ -87,29 +92,61 @@ impl<'a> Target<'a> {
         for dep_lib in &dependant_libs {
             if dep_lib.target_config.typ != "dll" {
                 utils::log(LogLevel::Error, "Can add only dlls as dependant libs");
-                utils::log(LogLevel::Error, &format!("Target: {} is not a dll", dep_lib.target_config.name));
-                utils::log(LogLevel::Error, &format!("Target: {} is a {}", dep_lib.target_config.name, dep_lib.target_config.typ));
+                utils::log(
+                    LogLevel::Error,
+                    &format!("Target: {} is not a dll", dep_lib.target_config.name),
+                );
+                utils::log(
+                    LogLevel::Error,
+                    &format!(
+                        "Target: {} is a {}",
+                        dep_lib.target_config.name, dep_lib.target_config.typ
+                    ),
+                );
                 std::process::exit(1);
-            }
-            else {
-                utils::log(LogLevel::Info, &format!("Adding dependant lib: {}", dep_lib.target_config.name));
+            } else {
+                utils::log(
+                    LogLevel::Info,
+                    &format!("Adding dependant lib: {}", dep_lib.target_config.name),
+                );
             }
             if !dep_lib.target_config.name.starts_with("lib") {
                 utils::log(LogLevel::Error, "Dependant lib name must start with lib");
-                utils::log(LogLevel::Error, &format!("Target: {} does not start with lib", dep_lib.target_config.name));
+                utils::log(
+                    LogLevel::Error,
+                    &format!(
+                        "Target: {} does not start with lib",
+                        dep_lib.target_config.name
+                    ),
+                );
                 std::process::exit(1);
             }
         }
         if target_config.deps.len() > dependant_libs.len() + packages.len() {
             utils::log(LogLevel::Error, "Dependant libs not found");
-            utils::log(LogLevel::Error, &format!("Dependant libs: {:?}", target_config.deps));
-            utils::log(LogLevel::Error, &format!("Found libs: {:?}", targets.iter().map(|x| {
-                if x.typ == "dll" {
-                    x.name.clone()
-                } else {
-                    "".to_string()
-                }
-            }).collect::<Vec<String>>().into_iter().filter(|x| x != "").collect::<Vec<String>>()));
+            utils::log(
+                LogLevel::Error,
+                &format!("Dependant libs: {:?}", target_config.deps),
+            );
+            utils::log(
+                LogLevel::Error,
+                &format!(
+                    "Found libs: {:?}",
+                    targets
+                        .iter()
+                        .map(|x| {
+                            if x.typ == "dll" {
+                                x.name.clone()
+                            } else {
+                                "".to_string()
+                            }
+                        })
+                        .collect::<Vec<String>>()
+                        .into_iter()
+                        .filter(|x| x != "")
+                        .collect::<Vec<String>>()
+                ),
+            );
             std::process::exit(1);
         }
 
@@ -131,10 +168,13 @@ impl<'a> Target<'a> {
     /// Builds the target
     /// # Arguments
     /// * `gen_cc` - Generate compile_commands.json
-    pub fn build(&mut self, gen_cc: bool ) {
+    pub fn build(&mut self, gen_cc: bool) {
         if !Path::new(".bld_cpp").exists() {
             std::fs::create_dir(".bld_cpp").unwrap_or_else(|why| {
-                utils::log(LogLevel::Error, &format!("Couldn't create .bld_cpp directory: {}", why));
+                utils::log(
+                    LogLevel::Error,
+                    &format!("Couldn't create .bld_cpp directory: {}", why),
+                );
                 std::process::exit(1);
             });
         }
@@ -142,13 +182,14 @@ impl<'a> Target<'a> {
             for target in &pkg.target_configs {
                 let empty: Vec<Package> = Vec::new();
                 if target.typ == "dll" {
-                    let mut pkg_tgt = Target::new(&pkg.build_config, &target, &pkg.target_configs, &empty);
+                    let mut pkg_tgt =
+                        Target::new(&pkg.build_config, &target, &pkg.target_configs, &empty);
                     pkg_tgt.build(gen_cc);
                 }
             }
         }
-        let mut to_link : bool = false;
-        let mut link_causer : Vec<&str> = Vec::new();
+        let mut to_link: bool = false;
+        let mut link_causer: Vec<&str> = Vec::new();
         let mut srcs_needed = 0;
         let total_srcs = self.srcs.len();
         let mut src_ccs = Vec::new();
@@ -166,10 +207,10 @@ impl<'a> Target<'a> {
         }
         if gen_cc {
             let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .append(true)
-            .open("./compile_commands.json")
-            .unwrap();
+                .write(true)
+                .append(true)
+                .open("./compile_commands.json")
+                .unwrap();
             for src_cc in src_ccs {
                 if let Err(e) = writeln!(file, "{},", src_cc) {
                     eprintln!("Couldn't write to file: {}", e);
@@ -177,19 +218,33 @@ impl<'a> Target<'a> {
             }
         }
         if to_link {
-            log(LogLevel::Log, &format!("Compiling Target: {}", &self.target_config.name));
-            log(LogLevel::Log, &format!("\t {} of {} source files have to be compiled", srcs_needed, total_srcs));
+            log(
+                LogLevel::Log,
+                &format!("Compiling Target: {}", &self.target_config.name),
+            );
+            log(
+                LogLevel::Log,
+                &format!(
+                    "\t {} of {} source files have to be compiled",
+                    srcs_needed, total_srcs
+                ),
+            );
             if !Path::new(OBJ_DIR).exists() {
                 fs::create_dir(OBJ_DIR).unwrap_or_else(|why| {
-                    log(LogLevel::Error, &format!("Couldn't create obj dir: {}", why));
+                    log(
+                        LogLevel::Error,
+                        &format!("Couldn't create obj dir: {}", why),
+                    );
                 });
             }
         } else {
-            log(LogLevel::Log, &format!("Target: {} is up to date", &self.target_config.name));
+            log(
+                LogLevel::Log,
+                &format!("Target: {} is up to date", &self.target_config.name),
+            );
             return;
         }
-        let progress_bar = Arc::new(Mutex::new(ProgressBar::new(srcs_needed as u64)
-        ));
+        let progress_bar = Arc::new(Mutex::new(ProgressBar::new(srcs_needed as u64)));
 
         let num_complete = Arc::new(Mutex::new(0));
         let src_hash_to_update = Arc::new(Mutex::new(Vec::new()));
@@ -205,14 +260,20 @@ impl<'a> Target<'a> {
                 src_hash_to_update.lock().unwrap().push(src);
                 log(LogLevel::Info, &format!("Compiled: {}", src.path));
                 let log_level = std::env::var("BUILDER_CPP_LOG_LEVEL").unwrap_or("".to_string());
-                if !(log_level == "Info" || log_level == "Debug"){
+                if !(log_level == "Info" || log_level == "Debug") {
                     let mut num_complete = num_complete.lock().unwrap();
                     *num_complete += 1;
                     let progress_bar = progress_bar.lock().unwrap();
-                    let template = format!("    {}{}", "Compiling :".cyan(), "[{bar:40.}] {pos}/{len} ({percent}%) {msg}[{elapsed_precise}] ");
-                    progress_bar.set_style(ProgressStyle::with_template(&template)
-                    .unwrap()
-                    .progress_chars("=>-"));
+                    let template = format!(
+                        "    {}{}",
+                        "Compiling :".cyan(),
+                        "[{bar:40.}] {pos}/{len} ({percent}%) {msg}[{elapsed_precise}] "
+                    );
+                    progress_bar.set_style(
+                        ProgressStyle::with_template(&template)
+                            .unwrap()
+                            .progress_chars("=>-"),
+                    );
                     progress_bar.inc(1);
                 }
             }
@@ -251,12 +312,18 @@ impl<'a> Target<'a> {
         if !Path::new(BUILD_DIR).exists() {
             let cmd = format!("mkdir -p {}", BUILD_DIR);
             let output = Command::new("sh")
-            .arg("-c")
-            .arg(cmd)
-            .output()
-            .expect("failed to execute process");
+                .arg("-c")
+                .arg(cmd)
+                .output()
+                .expect("failed to execute process");
             if !output.status.success() {
-                log(LogLevel::Error, &format!("Couldn't create build dir: {}", String::from_utf8_lossy(&output.stderr)));
+                log(
+                    LogLevel::Error,
+                    &format!(
+                        "Couldn't create build dir: {}",
+                        String::from_utf8_lossy(&output.stderr)
+                    ),
+                );
             }
         }
         for src in &self.srcs {
@@ -287,7 +354,6 @@ impl<'a> Target<'a> {
             let lib_name = lib_name.replace("lib", "-l");
             cmd.push_str(&lib_name);
             cmd.push_str(" ");
-
         }
 
         for package in self.packages {
@@ -321,8 +387,10 @@ impl<'a> Target<'a> {
         }
         cmd.push_str(&self.target_config.libs);
 
-
-        log(LogLevel::Info, &format!("Linking target: {}", &self.target_config.name));
+        log(
+            LogLevel::Info,
+            &format!("Linking target: {}", &self.target_config.name),
+        );
         log(LogLevel::Info, &format!("  Command: {}", &cmd));
         let output = Command::new("sh")
             .arg("-c")
@@ -335,7 +403,10 @@ impl<'a> Target<'a> {
         } else {
             log(LogLevel::Error, "  Linking failed");
             log(LogLevel::Error, &format!("  Command: {}", &cmd));
-            log(LogLevel::Error, &format!("  Error: {}", String::from_utf8_lossy(&output.stderr)));
+            log(
+                LogLevel::Error,
+                &format!("  Error: {}", String::from_utf8_lossy(&output.stderr)),
+            );
             std::process::exit(1);
         }
     }
@@ -346,11 +417,17 @@ impl<'a> Target<'a> {
         cc.push_str("{\n");
         if self.build_config.compiler == "clang++" || self.build_config.compiler == "g++" {
             cc.push_str("\t\"command\": \"c++");
-        } else if self.build_config.compiler == "clang" || self.build_config.compiler == "gcc"{
+        } else if self.build_config.compiler == "clang" || self.build_config.compiler == "gcc" {
             cc.push_str("\t\"command\": \"cc");
         } else {
-            log(LogLevel::Error, &format!("Compiler: {} is not supported", &self.build_config.compiler));
-            log(LogLevel::Error, "Supported compilers: clang++, g++, clang, gcc");
+            log(
+                LogLevel::Error,
+                &format!("Compiler: {} is not supported", &self.build_config.compiler),
+            );
+            log(
+                LogLevel::Error,
+                "Supported compilers: clang++, g++, clang, gcc",
+            );
             std::process::exit(1);
         }
         cc.push_str(" -c -o ");
@@ -372,9 +449,7 @@ impl<'a> Target<'a> {
         cc.push_str(" ");
         let cflags = &self.target_config.cflags;
         //Extract the -I mentions
-        let include_mentions = cflags
-            .split_whitespace()
-            .filter(|s| s.starts_with("-I"));
+        let include_mentions = cflags.split_whitespace().filter(|s| s.starts_with("-I"));
         for include_mention in include_mentions {
             cc.push_str(include_mention);
             cc.push_str(" ");
@@ -382,7 +457,10 @@ impl<'a> Target<'a> {
         //Expand the pkg-config mentiiions in cflags
         //Extract the pkg-config mentions
         //get strings which are inside ``
-        let pkg_mentions = cflags.split('`').filter(|s| s.contains("pkg-config")).collect::<Vec<&str>>();
+        let pkg_mentions = cflags
+            .split('`')
+            .filter(|s| s.contains("pkg-config"))
+            .collect::<Vec<&str>>();
         for pkg in pkg_mentions {
             let pkg_output = Command::new("sh")
                 .arg("-c")
@@ -394,11 +472,16 @@ impl<'a> Target<'a> {
             cc.pop();
         }
         //Add the rest of the cflags
-        let flags_left = cflags.split("`").
-        filter(|s| !s.contains("pkg-config"))
-        .collect::<Vec<&str>>();
-        let flags_left = flags_left.join(" ").split_whitespace()
-        .filter(|s| !s.starts_with("-I")).collect::<Vec<&str>>().join(" ");
+        let flags_left = cflags
+            .split("`")
+            .filter(|s| !s.contains("pkg-config"))
+            .collect::<Vec<&str>>();
+        let flags_left = flags_left
+            .join(" ")
+            .split_whitespace()
+            .filter(|s| !s.starts_with("-I"))
+            .collect::<Vec<&str>>()
+            .join(" ");
         cc.push_str(&flags_left);
         cc.push_str(" ");
 
@@ -411,13 +494,25 @@ impl<'a> Target<'a> {
         cc.push_str("\",\n");
         let mut dirent = String::new();
         dirent.push_str("\t\"directory\": \"");
-        dirent.push_str(&std::env::current_dir().unwrap().to_str().unwrap().replace("\\", "/"));
+        dirent.push_str(
+            &std::env::current_dir()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .replace("\\", "/"),
+        );
         dirent.push_str("\",\n");
         let dirent = dirent.replace("/", "\\\\").replace("\\\\.\\\\", "\\\\");
         cc.push_str(&dirent);
         let mut fileent = String::new();
         fileent.push_str("\t\"file\": \"");
-        fileent.push_str(&std::env::current_dir().unwrap().to_str().unwrap().replace("\\", "/"));
+        fileent.push_str(
+            &std::env::current_dir()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .replace("\\", "/"),
+        );
         fileent.push_str("/");
         fileent.push_str(&src.path);
         fileent.push_str("\"");
@@ -434,9 +529,12 @@ impl<'a> Target<'a> {
     //returns a vector of source files in the given root path
     fn get_srcs(&mut self, root_path: &str, target_config: &'a TargetConfig) -> Vec<Src> {
         let root_dir = PathBuf::from(root_path);
-        let mut srcs : Vec<Src> = Vec::new();
+        let mut srcs: Vec<Src> = Vec::new();
         let root_entries = std::fs::read_dir(root_dir).unwrap_or_else(|_| {
-            log(LogLevel::Error, &format!("Could not read directory: {}", root_path));
+            log(
+                LogLevel::Error,
+                &format!("Could not read directory: {}", root_path),
+            );
             std::process::exit(1);
         });
         for entry in root_entries {
@@ -445,10 +543,17 @@ impl<'a> Target<'a> {
                 let path = entry.path().to_str().unwrap().to_string();
                 srcs.append(&mut self.get_srcs(&path, target_config));
             } else {
-                if !entry.path().to_str().unwrap().ends_with(".cpp") && !entry.path().to_str().unwrap().ends_with(".c") {
+                if !entry.path().to_str().unwrap().ends_with(".cpp")
+                    && !entry.path().to_str().unwrap().ends_with(".c")
+                {
                     continue;
                 }
-                let path = entry.path().to_str().unwrap().to_string().replace("\\", "/");
+                let path = entry
+                    .path()
+                    .to_str()
+                    .unwrap()
+                    .to_string()
+                    .replace("\\", "/");
                 self.add_src(path);
             }
         }
@@ -461,7 +566,8 @@ impl<'a> Target<'a> {
         let obj_name = self.get_src_obj_name(&name);
         let dependant_includes = self.get_dependant_includes(&path);
         let bin_path = self.bin_path.clone();
-        self.srcs.push(Src::new(path, name, obj_name, bin_path, dependant_includes));
+        self.srcs
+            .push(Src::new(path, name, obj_name, bin_path, dependant_includes));
     }
 
     //returns the file name without the extension from the path
@@ -487,7 +593,17 @@ impl<'a> Target<'a> {
     fn get_dependant_includes(&mut self, path: &str) -> Vec<String> {
         let mut result = Vec::new();
         let include_substrings = self.get_include_substrings(path).unwrap_or_else(|| {
-            log(LogLevel::Error, &format!("Failed to get include substrings for file: {}", path));
+            log(
+                LogLevel::Error,
+                &format!("Failed to get include substrings for file: {}", path),
+            );
+            log(
+                LogLevel::Error,
+                &format!(
+                    "File included from: {:?}",
+                    self.dependant_includes.get(path)
+                ),
+            );
             std::process::exit(1);
         });
         if include_substrings.len() == 0 {
@@ -500,7 +616,8 @@ impl<'a> Target<'a> {
             }
             result.append(&mut self.get_dependant_includes(&dep_path));
             result.push(dep_path);
-            self.dependant_includes.insert(include_substring, result.clone());
+            self.dependant_includes
+                .insert(include_substring, result.clone());
         }
         let result = result.into_iter().unique().collect();
         result
@@ -531,7 +648,13 @@ impl<'a> Target<'a> {
 
 impl Src {
     //Creates a new source file
-    fn new(path: String, name: String, obj_name: String, bin_path: String, dependant_includes: Vec<String>) -> Self {
+    fn new(
+        path: String,
+        name: String,
+        obj_name: String,
+        bin_path: String,
+        dependant_includes: Vec<String>,
+    ) -> Self {
         Self {
             path,
             name,
@@ -551,21 +674,35 @@ impl Src {
         }
 
         if hasher::is_file_changed(&self.path, &path_hash) {
-            let result =  (true, format!("\tSource file has changed: {}", &self.path));
+            let result = (true, format!("\tSource file has changed: {}", &self.path));
             return result;
         }
         for dependant_include in &self.dependant_includes {
             if hasher::is_file_changed(&dependant_include.clone(), path_hash) {
-                let result = (true, format!("\tSource file: {} depends on changed include file: {}", &self.path, &dependant_include));
+                let result = (
+                    true,
+                    format!(
+                        "\tSource file: {} depends on changed include file: {}",
+                        &self.path, &dependant_include
+                    ),
+                );
                 return result;
             }
         }
-        let result = (false, format!("Source file: {} does not need to be built", &self.path));
+        let result = (
+            false,
+            format!("Source file: {} does not need to be built", &self.path),
+        );
         result
     }
 
     //builds the source file
-    fn build(&self, build_config: &BuildConfig, target_config: &TargetConfig, dependant_libs: &Vec<Target>) -> Option<String> {
+    fn build(
+        &self,
+        build_config: &BuildConfig,
+        target_config: &TargetConfig,
+        dependant_libs: &Vec<Target>,
+    ) -> Option<String> {
         let mut cmd = String::new();
         cmd.push_str(&build_config.compiler);
         cmd.push_str(" -c ");
@@ -585,7 +722,18 @@ impl Src {
         if build_config.packages.len() > 0 {
             for package in &build_config.packages {
                 cmd.push_str("-I");
-                cmd.push_str(&format!(".bld_cpp/includes/{} ", &package.split_whitespace().into_iter().next().unwrap().split('/').last().unwrap().replace(",", "")));
+                cmd.push_str(&format!(
+                    ".bld_cpp/includes/{} ",
+                    &package
+                        .split_whitespace()
+                        .into_iter()
+                        .next()
+                        .unwrap()
+                        .split('/')
+                        .last()
+                        .unwrap()
+                        .replace(",", "")
+                ));
                 cmd.push_str(" ");
             }
         }
@@ -617,8 +765,14 @@ impl Src {
         } else {
             log(LogLevel::Error, &format!("  Error: {}", &self.name));
             log(LogLevel::Error, &format!("  Command: {}", &cmd));
-            log(LogLevel::Error, &format!("  Stdout: {}", String::from_utf8_lossy(&output.stdout)));
-            log(LogLevel::Error, &format!("  Stderr: {}", String::from_utf8_lossy(&output.stderr)));
+            log(
+                LogLevel::Error,
+                &format!("  Stdout: {}", String::from_utf8_lossy(&output.stdout)),
+            );
+            log(
+                LogLevel::Error,
+                &format!("  Stderr: {}", String::from_utf8_lossy(&output.stderr)),
+            );
             std::process::exit(1);
         }
     }
