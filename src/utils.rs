@@ -1,14 +1,13 @@
 //! This file contains various logging and toml parsing functions
 //! used by the builder_cpp library
+use colored::Colorize;
 use std::{fs::File, io::Read, path::Path, process::Command};
 use toml::{Table, Value};
-use colored::Colorize;
 
 #[cfg(target_os = "windows")]
-static OBJ_DIR: &str  = ".bld_cpp/obj_win32";
+static OBJ_DIR: &str = ".bld_cpp/obj_win32";
 #[cfg(target_os = "linux")]
-static OBJ_DIR: &str  = ".bld_cpp/obj_linux";
-
+static OBJ_DIR: &str = ".bld_cpp/obj_linux";
 
 //Log utils
 #[derive(PartialEq, PartialOrd, Debug)]
@@ -103,7 +102,10 @@ impl TargetConfig {
         let mut src_names = Vec::new();
         let src_path = Path::new(&path);
         let src_entries = std::fs::read_dir(src_path).unwrap_or_else(|_| {
-            log(LogLevel::Error, &format!("Could not read src dir: {}", path));
+            log(
+                LogLevel::Error,
+                &format!("Could not read src dir: {}", path),
+            );
             std::process::exit(1);
         });
         for entry in src_entries {
@@ -131,47 +133,66 @@ impl TargetConfig {
 pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<TargetConfig>) {
     //open toml file and parse it into a string
     let mut file = File::open(path).unwrap_or_else(|_| {
-        log(LogLevel::Error, &format!("Could not open config file: {}", path));
+        log(
+            LogLevel::Error,
+            &format!("Could not open config file: {}", path),
+        );
         std::process::exit(1);
     });
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap_or_else(|_| {
-        log(LogLevel::Error, &format!("Could not read config file: {}", path));
+        log(
+            LogLevel::Error,
+            &format!("Could not read config file: {}", path),
+        );
         std::process::exit(1);
     });
     let config = contents.parse::<Table>().unwrap_or_else(|e| {
-        log(LogLevel::Error, &format!("Could not parse config file: {}", path));
+        log(
+            LogLevel::Error,
+            &format!("Could not parse config file: {}", path),
+        );
         log(LogLevel::Error, &format!("Error: {}", e));
         std::process::exit(1);
     });
 
-
     let mut pkgs: Vec<String> = Vec::new();
     let empty_value = Value::Array(Vec::new());
     //pkgs is optional
-    let pkgs_toml = config["build"].as_table().unwrap_or_else(|| {
-        log(LogLevel::Error, "Could not find build in config file");
-        std::process::exit(1);})
-        .get("packages").unwrap_or_else(|| &empty_value)
+    let pkgs_toml = config["build"]
+        .as_table()
+        .unwrap_or_else(|| {
+            log(LogLevel::Error, "Could not find build in config file");
+            std::process::exit(1);
+        })
+        .get("packages")
+        .unwrap_or_else(|| &empty_value)
         .as_array()
         .unwrap_or_else(|| {
             log(LogLevel::Error, "packages is not an array");
             std::process::exit(1);
         });
 
-    for pkg in pkgs_toml            {
-        pkgs.push(pkg.as_str().unwrap_or_else(|| {
-            log(LogLevel::Error, "packages are a vec of strings");
-            std::process::exit(1);
-        }).to_string());
+    for pkg in pkgs_toml {
+        pkgs.push(
+            pkg.as_str()
+                .unwrap_or_else(|| {
+                    log(LogLevel::Error, "packages are a vec of strings");
+                    std::process::exit(1);
+                })
+                .to_string(),
+        );
     }
 
     //parse the string into a struct
     let build_config = BuildConfig {
-        compiler: config["build"]["compiler"].as_str().unwrap_or_else(|| {
-            log(LogLevel::Error, "Could not find compiler in config file");
-            std::process::exit(1);
-        }).to_string(),
+        compiler: config["build"]["compiler"]
+            .as_str()
+            .unwrap_or_else(|| {
+                log(LogLevel::Error, "Could not find compiler in config file");
+                std::process::exit(1);
+            })
+            .to_string(),
         packages: pkgs,
     };
 
@@ -185,45 +206,68 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
         let mut deps: Vec<String> = Vec::new();
         let empty_value = Value::Array(Vec::new());
         //deps is optional
-        let deps_toml = target.get("deps").unwrap_or_else(|| { &empty_value })
+        let deps_toml = target
+            .get("deps")
+            .unwrap_or_else(|| &empty_value)
             .as_array()
             .unwrap_or_else(|| {
                 log(LogLevel::Error, "Deps is not an array");
                 std::process::exit(1);
-            })
-        ;
-        for dep in deps_toml            {
-            deps.push(dep.as_str().unwrap_or_else(|| {
-                log(LogLevel::Error, "Deps are a vec of strings");
-                std::process::exit(1);
-            }).to_string());
+            });
+        for dep in deps_toml {
+            deps.push(
+                dep.as_str()
+                    .unwrap_or_else(|| {
+                        log(LogLevel::Error, "Deps are a vec of strings");
+                        std::process::exit(1);
+                    })
+                    .to_string(),
+            );
         }
 
         let target_config = TargetConfig {
-            name: target["name"].as_str().unwrap_or_else(|| {
-                log(LogLevel::Error, "Could not find name in config file");
-                std::process::exit(1);
-            }).to_string(),
-            src: target["src"].as_str().unwrap_or_else(|| {
-                log(LogLevel::Error, "Could not find src in config file");
-                std::process::exit(1);
-            }).to_string(),
-            include_dir: target["include_dir"].as_str().unwrap_or_else(|| {
-                log(LogLevel::Error, "Could not find include_dir in config file");
-                std::process::exit(1);
-            }).to_string(),
-            typ: target["type"].as_str().unwrap_or_else(|| {
-                log(LogLevel::Error, "Could not find type in config file");
-                std::process::exit(1);
-            }).to_string(),
-            cflags: target["cflags"].as_str().unwrap_or_else(|| {
-                log(LogLevel::Error, "Could not find cflags in config file");
-                std::process::exit(1);
-            }).to_string(),
-            libs: target["libs"].as_str().unwrap_or_else(|| {
-                log(LogLevel::Error, "Could not find libs in config file");
-                std::process::exit(1);
-            }).to_string(),
+            name: target["name"]
+                .as_str()
+                .unwrap_or_else(|| {
+                    log(LogLevel::Error, "Could not find name in config file");
+                    std::process::exit(1);
+                })
+                .to_string(),
+            src: target["src"]
+                .as_str()
+                .unwrap_or_else(|| {
+                    log(LogLevel::Error, "Could not find src in config file");
+                    std::process::exit(1);
+                })
+                .to_string(),
+            include_dir: target["include_dir"]
+                .as_str()
+                .unwrap_or_else(|| {
+                    log(LogLevel::Error, "Could not find include_dir in config file");
+                    std::process::exit(1);
+                })
+                .to_string(),
+            typ: target["type"]
+                .as_str()
+                .unwrap_or_else(|| {
+                    log(LogLevel::Error, "Could not find type in config file");
+                    std::process::exit(1);
+                })
+                .to_string(),
+            cflags: target["cflags"]
+                .as_str()
+                .unwrap_or_else(|| {
+                    log(LogLevel::Error, "Could not find cflags in config file");
+                    std::process::exit(1);
+                })
+                .to_string(),
+            libs: target["libs"]
+                .as_str()
+                .unwrap_or_else(|| {
+                    log(LogLevel::Error, "Could not find libs in config file");
+                    std::process::exit(1);
+                })
+                .to_string(),
             deps,
         };
         if target_config.typ != "exe" && target_config.typ != "dll" {
@@ -237,28 +281,41 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
         log(LogLevel::Error, "No targets found");
         std::process::exit(1);
     }
-    let original_len = tgt.len();
-    tgt.sort_by_key(|t| t.name.clone());
-    tgt.dedup_by_key(|t| t.name.clone());
-    let dedup_len = tgt.len();
-    if original_len != dedup_len {
-        log(LogLevel::Error, "Duplicate targets found");
-        log(LogLevel::Error, "Target names must be unique");
-        std::process::exit(1);
+    //Check for duplicate target names
+    for i in 0..tgt.len() - 1 {
+        for j in i + 1..tgt.len() {
+            if tgt[i].name == tgt[j].name {
+                log(
+                    LogLevel::Error,
+                    &format!("Duplicate target names found: {}", tgt[i].name),
+                );
+                std::process::exit(1);
+            }
+        }
     }
+
     if check_dup_src {
         for target in &tgt {
             let mut src_file_names = TargetConfig::get_src_names(&target.src);
             src_file_names.sort();
             if src_file_names.len() == 0 {
-                log(LogLevel::Error, &format!("No source files found for target: {}", target.name));
+                log(
+                    LogLevel::Error,
+                    &format!("No source files found for target: {}", target.name),
+                );
                 std::process::exit(1);
             }
             for i in 0..src_file_names.len() - 1 {
                 if src_file_names[i] == src_file_names[i + 1] {
-                    log(LogLevel::Error, &format!("Duplicate source files found for target: {}", target.name));
+                    log(
+                        LogLevel::Error,
+                        &format!("Duplicate source files found for target: {}", target.name),
+                    );
                     log(LogLevel::Error, &format!("Source files must be unique"));
-                    log(LogLevel::Error, &format!("Duplicate file: {}", src_file_names[i]));
+                    log(
+                        LogLevel::Error,
+                        &format!("Duplicate file: {}", src_file_names[i]),
+                    );
                     std::process::exit(1);
                 }
             }
@@ -280,7 +337,13 @@ pub struct Package {
 
 impl Package {
     /// Creates a new package
-    pub fn new(name: String, repo: String, branch: String, build_config: BuildConfig, target_configs: Vec<TargetConfig>) -> Package {
+    pub fn new(
+        name: String,
+        repo: String,
+        branch: String,
+        build_config: BuildConfig,
+        target_configs: Vec<TargetConfig>,
+    ) -> Package {
         Package {
             name,
             repo,
@@ -309,10 +372,24 @@ impl Package {
                 std::process::exit(1);
             });
         if com.status.success() {
-            log(LogLevel::Log, &format!("Successfully updated package: {}", self.name));
-            log(LogLevel::Log, &format!("Output: {}", String::from_utf8_lossy(&com.stdout)).replace("\r", "").replace("\n", ""));
+            log(
+                LogLevel::Log,
+                &format!("Successfully updated package: {}", self.name),
+            );
+            log(
+                LogLevel::Log,
+                &format!("Output: {}", String::from_utf8_lossy(&com.stdout))
+                    .replace("\r", "")
+                    .replace("\n", ""),
+            );
         } else {
-            log(LogLevel::Error, &format!("Failed to update package: {}", String::from_utf8_lossy(&com.stderr)));
+            log(
+                LogLevel::Error,
+                &format!(
+                    "Failed to update package: {}",
+                    String::from_utf8_lossy(&com.stderr)
+                ),
+            );
             std::process::exit(1);
         }
     }
@@ -332,14 +409,31 @@ impl Package {
             .arg(cmd)
             .output()
             .unwrap_or_else(|e| {
-                log(LogLevel::Error, &format!("Failed to restore package: {}", e));
+                log(
+                    LogLevel::Error,
+                    &format!("Failed to restore package: {}", e),
+                );
                 std::process::exit(1);
             });
         if com.status.success() {
-            log(LogLevel::Log, &format!("Successfully restored package: {}", self.name));
-            log(LogLevel::Log, &format!("Output: {}", String::from_utf8_lossy(&com.stdout)).replace("\r", "").replace("\n", ""));
+            log(
+                LogLevel::Log,
+                &format!("Successfully restored package: {}", self.name),
+            );
+            log(
+                LogLevel::Log,
+                &format!("Output: {}", String::from_utf8_lossy(&com.stdout))
+                    .replace("\r", "")
+                    .replace("\n", ""),
+            );
         } else {
-            log(LogLevel::Error, &format!("Failed to restore package: {}", String::from_utf8_lossy(&com.stderr)));
+            log(
+                LogLevel::Error,
+                &format!(
+                    "Failed to restore package: {}",
+                    String::from_utf8_lossy(&com.stderr)
+                ),
+            );
             std::process::exit(1);
         }
     }
@@ -365,7 +459,10 @@ impl Package {
         for package in build_config_toml.packages {
             let deets = package.split_whitespace().collect::<Vec<&str>>();
             if deets.len() != 2 {
-                log(LogLevel::Error, "Packages must be in the form of \"<git_repo> <branch>\"");
+                log(
+                    LogLevel::Error,
+                    "Packages must be in the form of \"<git_repo> <branch>\"",
+                );
                 std::process::exit(1);
             }
             repo = deets[0].to_string().replace(",", "");
@@ -385,7 +482,10 @@ impl Package {
                 } else {
                     log(LogLevel::Info, &format!("Created {}", source_dir));
                 }
-                log(LogLevel::Log, &format!("Cloning {} into {}", repo, source_dir));
+                log(
+                    LogLevel::Log,
+                    &format!("Cloning {} into {}", repo, source_dir),
+                );
                 let repo_https = format!("https://github.com/{}", repo);
                 let mut cmd = Command::new("git");
                 cmd.arg("clone")
@@ -395,7 +495,13 @@ impl Package {
                     .arg(&source_dir);
                 let output = cmd.output().expect("Failed to execute git clone");
                 if !output.status.success() {
-                    log(LogLevel::Error, &format!("Failed to clone {} branch {} into {}", repo, branch, source_dir));
+                    log(
+                        LogLevel::Error,
+                        &format!(
+                            "Failed to clone {} branch {} into {}",
+                            repo, branch, source_dir
+                        ),
+                    );
                     std::process::exit(1);
                 }
             }
@@ -408,7 +514,7 @@ impl Package {
             log(LogLevel::Info, &format!("Parsed {}", pkg_toml));
 
             if pkg_bld_config_toml.packages.len() > 0 {
-                for foreign_package in Package::parse_packages(&pkg_toml){
+                for foreign_package in Package::parse_packages(&pkg_toml) {
                     packages.push(foreign_package);
                 }
             }
@@ -416,10 +522,7 @@ impl Package {
             build_config = pkg_bld_config_toml;
             build_config.compiler = build_config_toml.compiler.clone();
             if !Path::new(OBJ_DIR).exists() {
-                let cmd = Command::new("mkdir")
-                    .arg("-p")
-                    .arg(OBJ_DIR)
-                    .output();
+                let cmd = Command::new("mkdir").arg("-p").arg(OBJ_DIR).output();
                 if cmd.is_err() {
                     log(LogLevel::Error, &format!("Failed to create {}", OBJ_DIR));
                     std::process::exit(1);
@@ -432,30 +535,44 @@ impl Package {
                 if tgt.typ != "dll" {
                     continue;
                 }
-                tgt.src = format!("{}/{}", source_dir, tgt.src).replace("\\", "/").replace("/./", "/").replace("//", "/");
+                tgt.src = format!("{}/{}", source_dir, tgt.src)
+                    .replace("\\", "/")
+                    .replace("/./", "/")
+                    .replace("//", "/");
                 let old_inc_dir = tgt.include_dir.clone();
-                tgt.include_dir = format!("./.bld_cpp/includes/{}", name).replace("\\", "/").replace("/./", "/").replace("//", "/");
+                tgt.include_dir = format!("./.bld_cpp/includes/{}", name)
+                    .replace("\\", "/")
+                    .replace("/./", "/")
+                    .replace("//", "/");
                 if !Path::new(&tgt.include_dir).exists() {
                     let cmd = Command::new("mkdir")
                         .arg("-p")
                         .arg(&tgt.include_dir)
                         .output();
                     if cmd.is_err() {
-                        log(LogLevel::Error, &format!("Failed to create {}", tgt.include_dir));
+                        log(
+                            LogLevel::Error,
+                            &format!("Failed to create {}", tgt.include_dir),
+                        );
                         std::process::exit(1);
                     }
                     log(LogLevel::Info, &format!("Created {}", tgt.include_dir));
                     let mut cm = String::new();
                     cm.push_str("cp -r ");
-                    cm.push_str(&format!("{}/{}/* ", source_dir, old_inc_dir).replace("\\", "/").replace("/./", "/").replace("//", "/"));
+                    cm.push_str(
+                        &format!("{}/{}/* ", source_dir, old_inc_dir)
+                            .replace("\\", "/")
+                            .replace("/./", "/")
+                            .replace("//", "/"),
+                    );
                     cm.push_str(&tgt.include_dir);
                     cm.push_str("/ ");
-                    let cmd = Command::new("sh")
-                        .arg("-c")
-                        .arg(&cm)
-                        .output();
+                    let cmd = Command::new("sh").arg("-c").arg(&cm).output();
                     if cmd.is_err() {
-                        log(LogLevel::Error, &format!("Failed to create {}", tgt.include_dir));
+                        log(
+                            LogLevel::Error,
+                            &format!("Failed to create {}", tgt.include_dir),
+                        );
                         std::process::exit(1);
                     }
                 }
@@ -463,7 +580,13 @@ impl Package {
             }
         }
 
-        packages.push(Package::new(name, repo, branch, build_config, target_configs));
+        packages.push(Package::new(
+            name,
+            repo,
+            branch,
+            build_config,
+            target_configs,
+        ));
         packages.sort_by_key(|a| a.name.clone());
         packages.dedup_by_key(|a| a.name.clone());
         packages
