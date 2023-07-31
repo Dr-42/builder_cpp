@@ -56,8 +56,13 @@ fn main() {
     let (build_config, targets) = utils::parse_config("./config_linux.toml", true);
     #[cfg(target_os = "windows")]
     let (build_config, targets) = utils::parse_config("./config_win32.toml", true);
+    #[cfg(target_os = "android")]
+    let (build_config, targets) = utils::parse_config("./config_linux.toml", true);
+    
 
     #[cfg(target_os = "linux")]
+    let packages = utils::Package::parse_packages("./config_linux.toml");
+    #[cfg(target_os = "android")]
     let packages = utils::Package::parse_packages("./config_linux.toml");
     #[cfg(target_os = "windows")]
     let packages = utils::Package::parse_packages("./config_win32.toml");

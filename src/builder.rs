@@ -18,6 +18,8 @@ static BUILD_DIR: &str = ".bld_cpp/bin";
 static OBJ_DIR: &str = ".bld_cpp/obj_win32";
 #[cfg(target_os = "linux")]
 static OBJ_DIR: &str = ".bld_cpp/obj_linux";
+#[cfg(target_os = "android")]
+static OBJ_DIR: &str = ".bld_cpp/obj_linux";
 
 //Represents a target
 pub struct Target<'a> {
@@ -74,10 +76,18 @@ impl<'a> Target<'a> {
         } else if target_config.typ == "dll" {
             bin_path.push_str(".so");
         }
+        #[cfg(target_os = "android")]
+        if target_config.typ == "exe" {
+            bin_path.push_str("");
+        } else if target_config.typ == "dll" {
+            bin_path.push_str(".so");
+        }
 
         #[cfg(target_os = "windows")]
         let hash_file_path = format!(".bld_cpp/{}.win32.hash", &target_config.name);
         #[cfg(target_os = "linux")]
+        let hash_file_path = format!(".bld_cpp/{}.linux.hash", &target_config.name);
+        #[cfg(target_os = "android")]
         let hash_file_path = format!(".bld_cpp/{}.linux.hash", &target_config.name);
 
         let path_hash = hasher::load_hashes_from_file(&hash_file_path);
@@ -489,6 +499,10 @@ impl<'a> Target<'a> {
         if self.target_config.typ == "dll" {
             cc.push_str("-fPIC ");
         }
+        #[cfg(target_os = "android")]
+        if self.target_config.typ == "dll" {
+            cc.push_str("-fPIC ");
+        }
 
         cc.push_str(&src.path);
         cc.push_str("\",\n");
@@ -522,6 +536,8 @@ impl<'a> Target<'a> {
 
         cc.push_str("\n}");
         #[cfg(target_os = "linux")]
+        return cc.replace("\\\\", "/");
+        #[cfg(target_os = "android")]
         return cc.replace("\\\\", "/");
         #[cfg(target_os = "windows")]
         return cc;

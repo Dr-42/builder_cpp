@@ -10,6 +10,8 @@ static BUILD_DIR: &str = ".bld_cpp/bin";
 static OBJ_DIR: &str = ".bld_cpp/obj_win32";
 #[cfg(target_os = "linux")]
 static OBJ_DIR: &str = ".bld_cpp/obj_linux";
+#[cfg(target_os = "android")]
+static OBJ_DIR: &str = ".bld_cpp/obj_linux";
 
 ///Cleans the local targets
 /// # Arguments
@@ -38,6 +40,8 @@ pub fn clean(targets: &Vec<TargetConfig>) {
         let hash_path = format!(".bld_cpp/{}.win32.hash", &target.name);
         #[cfg(target_os = "linux")]
         let hash_path = format!(".bld_cpp/{}.linux.hash", &target.name);
+        #[cfg(target_os = "android")]
+        let hash_path = format!(".bld_cpp/{}.linux.hash", &target.name);
 
         if Path::new(&hash_path).exists() {
             fs::remove_file(&hash_path).unwrap_or_else(|why| {
@@ -60,6 +64,12 @@ pub fn clean(targets: &Vec<TargetConfig>) {
                 bin_name.push_str(".dll");
             }
             #[cfg(target_os = "linux")]
+            if target.typ == "exe" {
+                bin_name.push_str("");
+            } else if target.typ == "dll" {
+                bin_name.push_str(".so");
+            }
+            #[cfg(target_os = "android")]
             if target.typ == "exe" {
                 bin_name.push_str("");
             } else if target.typ == "dll" {
@@ -92,6 +102,8 @@ pub fn clean_packages(packages: &Vec<Package>) {
             #[cfg(target_os = "windows")]
             let pack_bin_path = format!("{}/{}.dll", BUILD_DIR, &target.name);
             #[cfg(target_os = "linux")]
+            let pack_bin_path = format!("{}/{}.so", BUILD_DIR, &target.name);
+            #[cfg(target_os = "android")]
             let pack_bin_path = format!("{}/{}.so", BUILD_DIR, &target.name);
 
             if !Path::new(&pack_bin_path).exists() {
@@ -263,6 +275,42 @@ pub fn build(
             inc_dirs.join("\",\n\t\t\t\t\""),
             compiler_path
         );
+        #[cfg(target_os = "android")]
+        let compiler_path = Command::new("sh")
+            .arg("-c")
+            .arg(&format!("which {}", &compiler_path))
+            .output()
+            .expect("failed to execute process")
+            .stdout;
+
+        #[cfg(target_os = "android")]
+        let compiler_path = String::from_utf8(compiler_path).unwrap().replace('\n', "");
+
+        #[cfg(target_os = "android")]
+        let vsc_json = format!(
+            r#"{{
+    "configurations": [
+        {{
+            "name": "Linux",
+            "includePath": [
+                "{}"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "compilerPath": "{}",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }}
+    ],
+    "version": 4
+}}"#,
+            inc_dirs.join("\",\n\t\t\t\t\""),
+            compiler_path
+        );
 
         //Write to file
         vsc_file
@@ -361,6 +409,8 @@ pub fn init(project_name: &str, is_c: bool) {
     #[cfg(target_os = "windows")]
     let config_file = project_name.to_owned() + "/config_win32.toml";
     #[cfg(target_os = "linux")]
+    let config_file = project_name.to_owned() + "/config_linux.toml";
+    #[cfg(target_os = "android")]
     let config_file = project_name.to_owned() + "/config_linux.toml";
 
     if Path::new(&config_file).exists() {

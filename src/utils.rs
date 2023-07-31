@@ -8,6 +8,8 @@ use toml::{Table, Value};
 static OBJ_DIR: &str = ".bld_cpp/obj_win32";
 #[cfg(target_os = "linux")]
 static OBJ_DIR: &str = ".bld_cpp/obj_linux";
+#[cfg(target_os = "android")]
+static OBJ_DIR: &str = ".bld_cpp/obj_linux";
 
 //Log utils
 #[derive(PartialEq, PartialOrd, Debug)]
@@ -506,6 +508,8 @@ impl Package {
                 }
             }
             #[cfg(target_os = "linux")]
+            let pkg_toml = format!("{}/config_linux.toml", source_dir).replace("//", "/");
+            #[cfg(target_os = "android")]
             let pkg_toml = format!("{}/config_linux.toml", source_dir).replace("//", "/");
             #[cfg(target_os = "windows")]
             let pkg_toml = format!("{}/config_win32.toml", source_dir).replace("//", "/");
