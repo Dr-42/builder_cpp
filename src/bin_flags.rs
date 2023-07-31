@@ -194,6 +194,17 @@ pub fn build(
             }
         }
         let compiler_path: String = build_config.compiler.clone();
+        let mut intellimode: String = String::new();
+        if compiler_path == "gcc" || compiler_path == "g++" {
+            intellimode = "gcc-x64".to_string();
+        } else if compiler_path == "clang" || compiler_path == "clang++" {
+            intellimode = "clang-x64".to_string();
+        } else {
+            log(
+                LogLevel::Error,
+                &format!("Unsupported compiler: {}", compiler_path),
+            );
+        }
 
         #[cfg(target_os = "windows")]
         let compiler_path = Command::new("sh")
@@ -230,13 +241,14 @@ pub fn build(
             "compilerPath": "{}",
             "cStandard": "c11",
             "cppStandard": "c++17",
-            "intelliSenseMode": "windows-gcc-x64"
+            "intelliSenseMode": "windows-{}"
         }}
     ],
     "version": 4
 }}"#,
             inc_dirs.join("\",\n\t\t\t\t\""),
-            compiler_path
+            compiler_path,
+            intellimode
         );
 
         #[cfg(target_os = "linux")]
@@ -267,13 +279,14 @@ pub fn build(
             "compilerPath": "{}",
             "cStandard": "c11",
             "cppStandard": "c++17",
-            "intelliSenseMode": "linux-gcc-x64"
+            "intelliSenseMode": "linux-{}"
         }}
     ],
     "version": 4
 }}"#,
             inc_dirs.join("\",\n\t\t\t\t\""),
-            compiler_path
+            compiler_path,
+            intellimode
         );
         #[cfg(target_os = "android")]
         let compiler_path = Command::new("sh")
@@ -303,13 +316,14 @@ pub fn build(
             "compilerPath": "{}",
             "cStandard": "c11",
             "cppStandard": "c++17",
-            "intelliSenseMode": "linux-gcc-x64"
+            "intelliSenseMode": "linux-{}"
         }}
     ],
     "version": 4
 }}"#,
             inc_dirs.join("\",\n\t\t\t\t\""),
-            compiler_path
+            compiler_path,
+            intellimode
         );
 
         //Write to file
