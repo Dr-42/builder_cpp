@@ -85,7 +85,7 @@ pub struct BuildConfig {
 }
 
 /// Struct describing the target config of the local project
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TargetConfig {
     pub name: String,
     pub src: String,
@@ -125,6 +125,37 @@ impl TargetConfig {
             }
         }
         src_names
+    }
+
+    fn arrange_targets(targets: &Vec<TargetConfig>) -> Vec<TargetConfig> {
+        let mut targets = targets.clone();
+        let mut i = 0;
+        while i < targets.len() {
+            let mut j = i + 1;
+            while j < targets.len() {
+                if targets[i].deps.contains(&targets[j].name) {
+                    //Check for circular dependencies
+                    if targets[j].deps.contains(&targets[i].name) {
+                        log(
+                            LogLevel::Error,
+                            &format!(
+                                "Circular dependency found between {} and {}",
+                                targets[i].name, targets[j].name
+                            ),
+                        );
+                        std::process::exit(1);
+                    }
+                    let temp = targets[i].clone();
+                    targets[i] = targets[j].clone();
+                    targets[j] = temp;
+                    i = 0;
+                    break;
+                }
+                j += 1;
+            }
+            i += 1;
+        }
+        targets
     }
 }
 
@@ -324,7 +355,9 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
         }
     }
 
-    (build_config, tgt)
+    let tgt_arranged = TargetConfig::arrange_targets(&tgt);
+
+    (build_config, tgt_arranged)
 }
 
 #[derive(Debug)]
