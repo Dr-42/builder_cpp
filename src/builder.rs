@@ -458,42 +458,44 @@ impl<'a> Target<'a> {
 
         cc.push_str(" ");
         let cflags = &self.target_config.cflags;
-        //Extract the -I mentions
-        let include_mentions = cflags.split_whitespace().filter(|s| s.starts_with("-I"));
-        for include_mention in include_mentions {
-            cc.push_str(include_mention);
-            cc.push_str(" ");
-        }
-        //Expand the pkg-config mentiiions in cflags
-        //Extract the pkg-config mentions
-        //get strings which are inside ``
-        let pkg_mentions = cflags
-            .split('`')
-            .filter(|s| s.contains("pkg-config"))
-            .collect::<Vec<&str>>();
-        for pkg in pkg_mentions {
-            let pkg_output = Command::new("sh")
+
+        let subcmds = cflags.split('`').collect::<Vec<&str>>();
+        // Take even entries are non-subcmds and odd entries are subcmds
+        let (subcmds, non_subcmds): (Vec<String>, String) = subcmds.iter().enumerate().fold(
+            (Vec::new(), String::new()),
+            |(mut subcmds, mut non_subcmds), (i, subcmd)| {
+                if i % 2 != 0 {
+                    subcmds.push(subcmd.to_string());
+                } else {
+                    non_subcmds.push_str(subcmd);
+                    non_subcmds.push_str(" ");
+                }
+                (subcmds, non_subcmds)
+            },
+        );
+
+        cc.push_str(&non_subcmds);
+
+        for subcmd in subcmds {
+            let cmd_output = Command::new("sh")
                 .arg("-c")
-                .arg(pkg)
+                .arg(&subcmd)
                 .output()
                 .expect("failed to execute process");
-            cc.push_str(&String::from_utf8_lossy(&pkg_output.stdout));
-            //trim the end newline
-            cc.pop();
+            if cmd_output.status.success() {
+                let stdout = String::from_utf8_lossy(&cmd_output.stdout);
+                let stdout = stdout.replace("\n", " ");
+                cc.push_str(&stdout);
+            } else {
+                let stderr = String::from_utf8_lossy(&cmd_output.stderr);
+                log(
+                    LogLevel::Error,
+                    &format!("Failed to execute subcmd: {}", &subcmd),
+                );
+                log(LogLevel::Error, &format!("  Stderr: {}", stderr));
+                std::process::exit(1);
+            }
         }
-        //Add the rest of the cflags
-        let flags_left = cflags
-            .split("`")
-            .filter(|s| !s.contains("pkg-config"))
-            .collect::<Vec<&str>>();
-        let flags_left = flags_left
-            .join(" ")
-            .split_whitespace()
-            .filter(|s| !s.starts_with("-I"))
-            .collect::<Vec<&str>>()
-            .join(" ");
-        cc.push_str(&flags_left);
-        cc.push_str(" ");
 
         #[cfg(target_os = "linux")]
         if self.target_config.typ == "dll" {
