@@ -377,22 +377,12 @@ impl<'a> Target<'a> {
                 cmd.push_str(&lib_name);
                 cmd.push_str(" ");
             }
-
-            cmd.push_str(" -I");
-            cmd.push_str(" ");
-
-            cmd.push_str(" -l");
-            cmd.push_str(&package.name);
-            cmd.push_str(" ");
         }
 
         if self.packages.len() + self.dependant_libs.len() > 0 {
-            cmd.push_str(" -L");
+            cmd.push_str("-L");
             cmd.push_str(BUILD_DIR);
-            cmd.push_str(" ");
-
-            cmd.push_str(" -Wl,-rpath,");
-            cmd.push_str(BUILD_DIR);
+            cmd.push_str(" -Wl,-rpath,\'$ORIGIN\' ");
             cmd.push_str(" ");
         }
         cmd.push_str(&self.target_config.libs);
