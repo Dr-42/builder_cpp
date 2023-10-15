@@ -1,5 +1,5 @@
 use crate::builder::Target;
-use crate::utils::{log, BuildConfig, LogLevel, Package, TargetConfig};
+use crate::utils::{self, log, BuildConfig, LogLevel, Package, TargetConfig};
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -543,4 +543,96 @@ pub fn init(project_name: &str, is_c: bool) {
         LogLevel::Log,
         &format!("Project {} initialised", project_name),
     );
+}
+
+pub fn init_project(project_name: String, is_c: bool) {
+    utils::log(utils::LogLevel::Log, "Initializing project...");
+    init(&project_name, is_c);
+    std::process::exit(0);
+}
+
+pub fn parse_config() -> (
+    utils::BuildConfig,
+    Vec<utils::TargetConfig>,
+    Vec<utils::Package>,
+) {
+    #[cfg(target_os = "linux")]
+    let (build_config, targets) = utils::parse_config("./config_linux.toml", true);
+    #[cfg(target_os = "windows")]
+    let (build_config, targets) = utils::parse_config("./config_win32.toml", true);
+    #[cfg(target_os = "android")]
+    let (build_config, targets) = utils::parse_config("./config_linux.toml", true);
+
+    let mut num_exe = 0;
+    let mut exe_target: Option<&utils::TargetConfig> = None;
+    if targets.len() == 0 {
+        utils::log(utils::LogLevel::Error, "No targets in config");
+        std::process::exit(1);
+    } else {
+        //Allow only one exe and set it as the exe_target
+        for target in &targets {
+            if target.typ == "exe" {
+                num_exe += 1;
+                exe_target = Some(target);
+            }
+        }
+    }
+
+    if num_exe != 1 || exe_target.is_none() {
+        utils::log(
+            utils::LogLevel::Error,
+            "Exactly one executable target must be specified",
+        );
+        std::process::exit(1);
+    }
+
+    #[cfg(target_os = "linux")]
+    let packages = utils::Package::parse_packages("./config_linux.toml");
+    #[cfg(target_os = "android")]
+    let packages = utils::Package::parse_packages("./config_linux.toml");
+    #[cfg(target_os = "windows")]
+    let packages = utils::Package::parse_packages("./config_win32.toml");
+
+    (build_config, targets, packages)
+}
+
+pub fn pre_gen_cc() {
+    if !Path::new("./compile_commands.json").exists() {
+        fs::File::create(Path::new("./compile_commands.json")).unwrap();
+    } else {
+        fs::remove_file(Path::new("./compile_commands.json")).unwrap();
+        fs::File::create(Path::new("./compile_commands.json")).unwrap();
+    }
+}
+
+pub fn pre_gen_vsc() {
+    if !Path::new("./.vscode").exists() {
+        fs::create_dir(Path::new("./.vscode")).unwrap();
+    }
+
+    if !Path::new("./.vscode/c_cpp_properties.json").exists() {
+        fs::File::create(Path::new("./.vscode/c_cpp_properties.json")).unwrap();
+    } else {
+        fs::remove_file(Path::new("./.vscode/c_cpp_properties.json")).unwrap();
+        fs::File::create(Path::new("./.vscode/c_cpp_properties.json")).unwrap();
+    }
+}
+
+pub fn clean_packages_wrapper(packages: &Vec<utils::Package>) {
+    utils::log(utils::LogLevel::Log, "Cleaning packages...");
+    clean_packages(&packages);
+}
+
+pub fn update_packages(packages: &Vec<utils::Package>) {
+    utils::log(utils::LogLevel::Log, "Updating packages...");
+    for package in packages {
+        package.update();
+    }
+}
+
+pub fn restore_packages(packages: &Vec<utils::Package>) {
+    utils::log(utils::LogLevel::Log, "Restoring packages...");
+    for package in packages {
+        package.restore();
+    }
 }
