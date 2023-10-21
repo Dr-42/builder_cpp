@@ -46,12 +46,12 @@ enum Commands {
     Init {
         /// Name of the project
         name: String,
-        #[arg(long)]
+        #[clap(long, action)]
         /// Initialize a C project
-        c: Option<bool>,
-        #[arg(long)]
+        c: bool,
+        #[clap(long, action)]
         /// Initialize a C++ project
-        cpp: Option<bool>,
+        cpp: bool,
     },
 }
 
@@ -61,7 +61,7 @@ fn main() {
     if args.init.is_some() {
         match args.init {
             Some(Commands::Init { name, c, cpp }) => {
-                if c.is_some() && cpp.is_some() {
+                if c && cpp {
                     utils::log(
                         utils::LogLevel::Error,
                         "Only one of --c or --cpp can be specified",
@@ -69,7 +69,7 @@ fn main() {
                     std::process::exit(1);
                 }
 
-                if c.is_none() && cpp.is_none() {
+                if !c && !cpp {
                     utils::log(
                         utils::LogLevel::Warn,
                         "No language specified. Defaulting to C++",
@@ -78,7 +78,7 @@ fn main() {
                     std::process::exit(0);
                 }
 
-                if c.is_some() {
+                if c {
                     bin_flags::init_project(name, true);
                 } else {
                     bin_flags::init_project(name, false);
