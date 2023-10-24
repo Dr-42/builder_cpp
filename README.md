@@ -21,12 +21,15 @@ For subcommands run with -h flag
 - [x] Auto add project libraries to other targets
 - [x] Get libraries as packages from github
 
+# Limitations
+- [x] Only supports clang and gcc compilers
+
 ## Usage
 Write a config_win32.toml for windows and config_linux.toml for linux
 
 To create a new project 
 ```console
-builder_cpp --init <project-name> [--c|--cpp]
+builder_cpp init <project-name> [--c|--cpp]
 ```
 
 For help
@@ -36,25 +39,26 @@ builder_cpp --help
 
 The help command will show you the following
 ```sh
-[LOG] Usage: $ builder_cpp <options>
-[LOG] Options:
-[LOG]   -c              Clean the build directory
-[LOG]   -r              Run the executable
-[LOG]   -b              Build the project
-[LOG]   -h              Show this help message
-[LOG]
-[LOG]   --help                  Show this help message
-[LOG]   --init <project name> [--c|--cpp]       Initialize the project. Default is C++
-[LOG]   --bin-args <args>       Pass arguments to the executable
-[LOG]   --gen-cc                Generate compile_commands.json
-[LOG]   --gen-vsc               Generate .vscode directory
-[LOG]   --clean-packages        Clean the package binaries
-[LOG]   --update-packages       Update the packages
-[LOG]   --restore-packages      Restore the packages
-[LOG]   --version               Show the version
-[LOG] Environment variables:
-[LOG]   BUILDER_CPP_LOG_LEVEL
-[LOG]           Valid values are: Debug, Log, Info, Warn, Error
+A simple build tool for building C and C++ applications
+
+Usage: builder_cpp.exe [OPTIONS] [COMMAND]
+
+Commands:
+  init  Initialize a new project Defaults to C++ if no language is specified
+  help  Print this message or the help of the given subcommand(s)
+
+Options:
+  -b, --build                   Build your project
+  -c, --clean                   Clean the obj and bin intermediates
+  -r, --run                     Run the executable
+      --bin-args <BIN_ARGS>...  Arguments to pass to the executable when running
+      --gen-cc                  Generate compile_commands.json
+      --gen-vsc                 Generate .vscode/c_cpp_properties.json
+      --clean-packages          Clean packages
+      --update-packages         Update packages
+      --restore-packages        Restore packages
+  -h, --help                    Print help
+  -V, --version                 Print version
 ```
 
 Sample file with a library and an executable
@@ -100,3 +104,7 @@ Optional keys in toml are packages in build and deps in targets
 
 To see a real project being built with the tool
 	[Nomu_Engine](https://github.com/Dr-42/Nomu_Engine)
+	[Heim_Engine](https://github.com/Dr-42/Heim_Engine)
+	[Imeye](https://github.com/Dr-42/imeye)
+	
+	And lots more.
