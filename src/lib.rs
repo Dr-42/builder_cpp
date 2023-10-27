@@ -73,3 +73,5 @@ pub mod builder;
 pub mod utils;
 /// Contains hashing related functions
 pub mod hasher;
+/// Handles global config
+pub mod global_config;

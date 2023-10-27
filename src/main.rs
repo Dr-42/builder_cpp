@@ -1,5 +1,8 @@
 use builder_cpp::{bin_flags, utils};
 use clap::{Parser, Subcommand};
+use directories::ProjectDirs;
+
+use builder_cpp::global_config::GlobalConfig;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -16,7 +19,7 @@ struct Args {
 
     /// Initialize a new project. See `init --help` for more info
     #[command(subcommand)]
-    init: Option<Commands>,
+    commands: Option<Commands>,
 
     /// Arguments to pass to the executable when running
     #[arg(long, num_args(1..))]
@@ -53,13 +56,54 @@ enum Commands {
         /// Initialize a C++ project
         cpp: bool,
     },
+
+    /// Configuration settings
+    Config {
+        /// Parameter to set
+        ///     Currently supported parameters:
+        ///     - `default_compiler`: Sets the default compiler to use
+        ///     - `default_language`: Sets the default language to use
+        ///     - `license`: Sets the license to use. Give the path to the license file
+        #[clap(verbatim_doc_comment)]
+        parameter: String,
+        /// Value to set the parameter to
+        ///     Currently supported values:
+        ///     - `compiler`: `gcc`, `clang` Uses g++ or clang++ respectively
+        ///     - `language`: `c`, `cpp`
+        ///     - `license`: `path/to/license/file`
+        #[clap(verbatim_doc_comment)]
+        value: String,
+    },
 }
 
 fn main() {
+    let project_dirs = ProjectDirs::from("com", "Dr42Apps", "builder-cpp").unwrap();
+    let config_dir = project_dirs.config_dir();
+
+    if !config_dir.exists() {
+        std::fs::create_dir_all(config_dir).unwrap();
+    }
+
+    let config = config_dir.join("config.toml");
+
+    if !config.exists() {
+        std::fs::write(
+            &config,
+            r#"
+default_compiler = "gcc"
+default_language = "cpp"
+license = "NONE"
+"#,
+        )
+        .unwrap();
+    }
+
+    let global_config = GlobalConfig::from_file(&config);
+
     let args = Args::parse();
 
-    if args.init.is_some() {
-        match args.init {
+    if args.commands.is_some() {
+        match args.commands {
             Some(Commands::Init { name, c, cpp }) => {
                 if c && cpp {
                     utils::log(
@@ -70,22 +114,28 @@ fn main() {
                 }
 
                 if !c && !cpp {
-                    utils::log(
-                        utils::LogLevel::Warn,
-                        "No language specified. Defaulting to C++",
-                    );
-                    bin_flags::init_project(name, true);
+                    bin_flags::init_project(name, None, global_config);
                     std::process::exit(0);
                 }
 
                 if c {
-                    bin_flags::init_project(name, true);
+                    bin_flags::init_project(name, Some(true), global_config);
                 } else {
-                    bin_flags::init_project(name, false);
+                    bin_flags::init_project(name, Some(false), global_config);
                 }
             }
+            Some(Commands::Config { parameter, value }) => {
+                let parameter = parameter.as_str();
+                let value = value.as_str();
+                GlobalConfig::set_defaults(&config, parameter, value);
+                utils::log(
+                    utils::LogLevel::Log,
+                    format!("Setting {} to {}", parameter, value).as_str(),
+                );
+                std::process::exit(0);
+            }
             None => {
-                utils::log(utils::LogLevel::Error, "No init command specified");
+                utils::log(utils::LogLevel::Error, "Rust is broken");
                 std::process::exit(1);
             }
         }

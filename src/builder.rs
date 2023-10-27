@@ -62,7 +62,7 @@ impl<'a> Target<'a> {
 
         let mut bin_path = String::new();
         bin_path.push_str(BUILD_DIR);
-        bin_path.push_str("/");
+        bin_path.push('/');
         bin_path.push_str(&target_config.name);
         #[cfg(target_os = "windows")]
         if target_config.typ == "exe" {
@@ -153,7 +153,7 @@ impl<'a> Target<'a> {
                         })
                         .collect::<Vec<String>>()
                         .into_iter()
-                        .filter(|x| x != "")
+                        .filter(|x| !x.is_empty())
                         .collect::<Vec<String>>()
                 ),
             );
@@ -193,7 +193,7 @@ impl<'a> Target<'a> {
                 let empty: Vec<Package> = Vec::new();
                 if target.typ == "dll" {
                     let mut pkg_tgt =
-                        Target::new(&pkg.build_config, &target, &pkg.target_configs, &empty);
+                        Target::new(&pkg.build_config, target, &pkg.target_configs, &empty);
                     pkg_tgt.build(gen_cc);
                 }
             }
@@ -212,7 +212,7 @@ impl<'a> Target<'a> {
                 srcs_needed += 1;
             }
             if gen_cc {
-                src_ccs.push(self.gen_cc(&src));
+                src_ccs.push(self.gen_cc(src));
             }
         }
         if gen_cc {
@@ -264,8 +264,8 @@ impl<'a> Target<'a> {
             log(LogLevel::Debug, &format!("{}: {}", src.path, to_build));
             if to_build {
                 let warn = src.build(self.build_config, self.target_config, &self.dependant_libs);
-                if warn.is_some() {
-                    warns.lock().unwrap().push(warn.unwrap());
+                if let Some(warn) = warn {
+                    warns.lock().unwrap().push(warn);
                 }
                 src_hash_to_update.lock().unwrap().push(src);
                 log(LogLevel::Info, &format!("Compiled: {}", src.path));
@@ -349,33 +349,33 @@ impl<'a> Target<'a> {
         }
 
         for obj in objs {
-            cmd.push_str(" ");
+            cmd.push(' ');
             cmd.push_str(obj);
         }
-        cmd.push_str(" ");
+        cmd.push(' ');
         cmd.push_str(&self.target_config.cflags);
-        cmd.push_str(" ");
+        cmd.push(' ');
         for dep_target in dep_targets {
             cmd.push_str(" -I");
             cmd.push_str(&dep_target.target_config.include_dir);
-            cmd.push_str(" ");
+            cmd.push(' ');
 
             let lib_name = dep_target.target_config.name.clone();
             let lib_name = lib_name.replace("lib", "-l");
             cmd.push_str(&lib_name);
-            cmd.push_str(" ");
+            cmd.push(' ');
         }
 
         for package in self.packages {
             for target in &package.target_configs {
                 cmd.push_str(" -I");
                 cmd.push_str(&target.include_dir);
-                cmd.push_str(" ");
+                cmd.push(' ');
 
                 let lib_name = target.name.clone();
                 let lib_name = lib_name.replace("lib", "-l");
                 cmd.push_str(&lib_name);
-                cmd.push_str(" ");
+                cmd.push(' ');
             }
         }
 
@@ -383,7 +383,7 @@ impl<'a> Target<'a> {
             cmd.push_str("-L");
             cmd.push_str(BUILD_DIR);
             cmd.push_str(" -Wl,-rpath,\'$ORIGIN\' ");
-            cmd.push_str(" ");
+            cmd.push(' ');
         }
         cmd.push_str(&self.target_config.libs);
 
@@ -446,7 +446,7 @@ impl<'a> Target<'a> {
             }
         }
 
-        cc.push_str(" ");
+        cc.push(' ');
         let cflags = &self.target_config.cflags;
 
         let subcmds = cflags.split('`').collect::<Vec<&str>>();
@@ -458,7 +458,7 @@ impl<'a> Target<'a> {
                     subcmds.push(subcmd.to_string());
                 } else {
                     non_subcmds.push_str(subcmd);
-                    non_subcmds.push_str(" ");
+                    non_subcmds.push(' ');
                 }
                 (subcmds, non_subcmds)
             },
@@ -474,7 +474,7 @@ impl<'a> Target<'a> {
                 .expect("failed to execute process");
             if cmd_output.status.success() {
                 let stdout = String::from_utf8_lossy(&cmd_output.stdout);
-                let stdout = stdout.replace("\n", " ");
+                let stdout = stdout.replace('\n', " ");
                 cc.push_str(&stdout);
             } else {
                 let stderr = String::from_utf8_lossy(&cmd_output.stderr);
@@ -505,10 +505,10 @@ impl<'a> Target<'a> {
                 .unwrap()
                 .to_str()
                 .unwrap()
-                .replace("\\", "/"),
+                .replace('\\', "/"),
         );
         dirent.push_str("\",\n");
-        let dirent = dirent.replace("/", "\\\\").replace("\\\\.\\\\", "\\\\");
+        let dirent = dirent.replace('/', "\\\\").replace("\\\\.\\\\", "\\\\");
         cc.push_str(&dirent);
         let mut fileent = String::new();
         fileent.push_str("\t\"file\": \"");
@@ -517,12 +517,12 @@ impl<'a> Target<'a> {
                 .unwrap()
                 .to_str()
                 .unwrap()
-                .replace("\\", "/"),
+                .replace('\\', "/"),
         );
-        fileent.push_str("/");
+        fileent.push('/');
         fileent.push_str(&src.path);
-        fileent.push_str("\"");
-        let fileent = fileent.replace("/", "\\\\").replace("\\\\.\\\\", "\\\\");
+        fileent.push('\"');
+        let fileent = fileent.replace('/', "\\\\").replace("\\\\.\\\\", "\\\\");
 
         cc.push_str(&fileent);
 
@@ -535,7 +535,7 @@ impl<'a> Target<'a> {
         return cc;
     }
     //returns a vector of source files in the given root path
-    fn get_srcs(&mut self, root_path: &str, target_config: &'a TargetConfig) -> Vec<Src> {
+    fn get_srcs(&mut self, root_path: &str, _target_config: &'a TargetConfig) -> Vec<Src> {
         let root_dir = PathBuf::from(root_path);
         let mut srcs: Vec<Src> = Vec::new();
         let root_entries = std::fs::read_dir(root_dir).unwrap_or_else(|_| {
@@ -549,7 +549,7 @@ impl<'a> Target<'a> {
             let entry = entry.unwrap();
             if entry.path().is_dir() {
                 let path = entry.path().to_str().unwrap().to_string();
-                srcs.append(&mut self.get_srcs(&path, target_config));
+                srcs.append(&mut self.get_srcs(&path, _target_config));
             } else {
                 if !entry.path().to_str().unwrap().ends_with(".cpp")
                     && !entry.path().to_str().unwrap().ends_with(".c")
@@ -561,7 +561,7 @@ impl<'a> Target<'a> {
                     .to_str()
                     .unwrap()
                     .to_string()
-                    .replace("\\", "/");
+                    .replace('\\', "/");
                 self.add_src(path);
             }
         }
@@ -590,9 +590,9 @@ impl<'a> Target<'a> {
     fn get_src_obj_name(&self, src_name: &str) -> String {
         let mut obj_name = String::new();
         obj_name.push_str(OBJ_DIR);
-        obj_name.push_str("/");
+        obj_name.push('/');
         obj_name.push_str(&self.target_config.name);
-        obj_name.push_str(&src_name);
+        obj_name.push_str(src_name);
         obj_name.push_str(".o");
         obj_name
     }
@@ -614,7 +614,7 @@ impl<'a> Target<'a> {
             );
             std::process::exit(1);
         });
-        if include_substrings.len() == 0 {
+        if include_substrings.is_empty() {
             return result;
         }
         for include_substring in include_substrings {
@@ -627,8 +627,8 @@ impl<'a> Target<'a> {
             self.dependant_includes
                 .insert(include_substring, result.clone());
         }
-        let result = result.into_iter().unique().collect();
-        result
+
+        result.into_iter().unique().collect()
     }
 
     //returns a vector of strings that are the include substrings
@@ -642,11 +642,11 @@ impl<'a> Target<'a> {
         let mut buf = String::new();
         file.read_to_string(&mut buf).unwrap();
 
-        let mut lines = buf.lines();
+        let lines = buf.lines();
         let mut include_substrings = Vec::new();
-        while let Some(line) = lines.next() {
+        for line in lines {
             if line.starts_with("#include \"") {
-                let include_path = line.split("\"").nth(1).unwrap().to_owned();
+                let include_path = line.split('\"').nth(1).unwrap().to_owned();
                 include_substrings.push(include_path);
             }
         }
@@ -681,7 +681,7 @@ impl Src {
             return result;
         }
 
-        if hasher::is_file_changed(&self.path, &path_hash) {
+        if hasher::is_file_changed(&self.path, path_hash) {
             let result = (true, format!("\tSource file has changed: {}", &self.path));
             return result;
         }
@@ -697,11 +697,11 @@ impl Src {
                 return result;
             }
         }
-        let result = (
+
+        (
             false,
             format!("Source file: {} does not need to be built", &self.path),
-        );
-        result
+        )
     }
 
     //builds the source file
@@ -719,30 +719,29 @@ impl Src {
         cmd.push_str(&self.obj_name);
         cmd.push_str(" -I");
         cmd.push_str(&target_config.include_dir);
-        cmd.push_str(" ");
+        cmd.push(' ');
 
         for dependant_lib in dependant_libs {
             cmd.push_str("-I");
             cmd.push_str(dependant_lib.target_config.include_dir.as_str());
-            cmd.push_str(" ");
+            cmd.push(' ');
         }
 
-        if build_config.packages.len() > 0 {
+        if !build_config.packages.is_empty() {
             for package in &build_config.packages {
                 cmd.push_str("-I");
                 cmd.push_str(&format!(
                     ".bld_cpp/includes/{} ",
                     &package
                         .split_whitespace()
-                        .into_iter()
                         .next()
                         .unwrap()
                         .split('/')
                         .last()
                         .unwrap()
-                        .replace(",", "")
+                        .replace(',', "")
                 ));
-                cmd.push_str(" ");
+                cmd.push(' ');
             }
         }
 
@@ -769,7 +768,7 @@ impl Src {
             if stderr.len() > 0 {
                 return Some(stderr.to_string());
             }
-            return None;
+            None
         } else {
             log(LogLevel::Error, &format!("  Error: {}", &self.name));
             log(LogLevel::Error, &format!("  Command: {}", &cmd));

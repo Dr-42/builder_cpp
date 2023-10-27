@@ -119,7 +119,7 @@ impl TargetConfig {
                     src_names.push(file_name.to_string());
                 }
             } else if path.is_dir() {
-                let dir_name = path.to_str().unwrap().replace("\\", "/");
+                let dir_name = path.to_str().unwrap().replace('\\', "/");
                 let mut dir_src_names = TargetConfig::get_src_names(&dir_name);
                 src_names.append(&mut dir_src_names);
             }
@@ -127,7 +127,7 @@ impl TargetConfig {
         src_names
     }
 
-    fn arrange_targets(targets: &Vec<TargetConfig>) -> Vec<TargetConfig> {
+    fn arrange_targets(targets: Vec<TargetConfig>) -> Vec<TargetConfig> {
         let mut targets = targets.clone();
         let mut i = 0;
         while i < targets.len() {
@@ -199,7 +199,7 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
             std::process::exit(1);
         })
         .get("packages")
-        .unwrap_or_else(|| &empty_value)
+        .unwrap_or(&empty_value)
         .as_array()
         .unwrap_or_else(|| {
             log(LogLevel::Error, "packages is not an array");
@@ -241,7 +241,7 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
         //deps is optional
         let deps_toml = target
             .get("deps")
-            .unwrap_or_else(|| &empty_value)
+            .unwrap_or(&empty_value)
             .as_array()
             .unwrap_or_else(|| {
                 log(LogLevel::Error, "Deps is not an array");
@@ -310,7 +310,7 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
         tgt.push(target_config);
     }
 
-    if tgt.len() == 0 {
+    if tgt.is_empty() {
         log(LogLevel::Error, "No targets found");
         std::process::exit(1);
     }
@@ -331,7 +331,7 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
         for target in &tgt {
             let mut src_file_names = TargetConfig::get_src_names(&target.src);
             src_file_names.sort();
-            if src_file_names.len() == 0 {
+            if src_file_names.is_empty() {
                 log(
                     LogLevel::Error,
                     &format!("No source files found for target: {}", target.name),
@@ -344,7 +344,7 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
                         LogLevel::Error,
                         &format!("Duplicate source files found for target: {}", target.name),
                     );
-                    log(LogLevel::Error, &format!("Source files must be unique"));
+                    log(LogLevel::Error, "Source files must be unique");
                     log(
                         LogLevel::Error,
                         &format!("Duplicate file: {}", src_file_names[i]),
@@ -355,7 +355,7 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
         }
     }
 
-    let tgt_arranged = TargetConfig::arrange_targets(&tgt);
+    let tgt_arranged = TargetConfig::arrange_targets(tgt);
 
     (build_config, tgt_arranged)
 }
@@ -414,8 +414,8 @@ impl Package {
             log(
                 LogLevel::Log,
                 &format!("Output: {}", String::from_utf8_lossy(&com.stdout))
-                    .replace("\r", "")
-                    .replace("\n", ""),
+                    .replace('\r', "")
+                    .replace('\n', ""),
             );
         } else {
             log(
@@ -458,8 +458,8 @@ impl Package {
             log(
                 LogLevel::Log,
                 &format!("Output: {}", String::from_utf8_lossy(&com.stdout))
-                    .replace("\r", "")
-                    .replace("\n", ""),
+                    .replace('\r', "")
+                    .replace('\n', ""),
             );
         } else {
             log(
@@ -500,10 +500,10 @@ impl Package {
                 );
                 std::process::exit(1);
             }
-            repo = deets[0].to_string().replace(",", "");
+            repo = deets[0].to_string().replace(',', "");
             branch = deets[1].to_string();
 
-            name = repo.split("/").collect::<Vec<&str>>()[1].to_string();
+            name = repo.split('/').collect::<Vec<&str>>()[1].to_string();
             let source_dir = format!("./.bld_cpp/sources/{}/", name);
             if !Path::new(&source_dir).exists() {
                 Command::new("mkdir")
@@ -550,7 +550,7 @@ impl Package {
             let (pkg_bld_config_toml, pkg_targets_toml) = parse_config(&pkg_toml, false);
             log(LogLevel::Info, &format!("Parsed {}", pkg_toml));
 
-            if pkg_bld_config_toml.packages.len() > 0 {
+            if !pkg_bld_config_toml.packages.is_empty() {
                 for foreign_package in Package::parse_packages(&pkg_toml) {
                     packages.push(foreign_package);
                 }
@@ -573,12 +573,12 @@ impl Package {
                     continue;
                 }
                 tgt.src = format!("{}/{}", source_dir, tgt.src)
-                    .replace("\\", "/")
+                    .replace('\\', "/")
                     .replace("/./", "/")
                     .replace("//", "/");
                 let old_inc_dir = tgt.include_dir.clone();
                 tgt.include_dir = format!("./.bld_cpp/includes/{}", name)
-                    .replace("\\", "/")
+                    .replace('\\', "/")
                     .replace("/./", "/")
                     .replace("//", "/");
                 if !Path::new(&tgt.include_dir).exists() {
@@ -598,7 +598,7 @@ impl Package {
                     cm.push_str("cp -r ");
                     cm.push_str(
                         &format!("{}/{}/* ", source_dir, old_inc_dir)
-                            .replace("\\", "/")
+                            .replace('\\', "/")
                             .replace("/./", "/")
                             .replace("//", "/"),
                     );

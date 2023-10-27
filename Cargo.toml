@@ -1,6 +1,6 @@
 [package]
 name = "builder_cpp"
-version = "0.6.2"
+version = "0.7.0"
 edition = "2021"
 description = "A simple build tool for building C and C++ applications"
 license = "MIT"
@@ -16,3 +16,5 @@ sha1 = "0.10.5"
 rayon = "1.7.0"
 indicatif = "0.17.3"
 clap = { version = "4.4.6", features = ["derive"] }
+directories = "5.0.1"
+serde = { version = "1.0.190", features = ["derive"] }
