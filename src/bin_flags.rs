@@ -697,6 +697,30 @@ pub fn parse_config() -> (
             if target.typ == "exe" {
                 num_exe += 1;
                 exe_target = Some(target);
+            } else if target.typ == "dll" {
+                // Check if the dll target name starts with lib
+                if !target.name.starts_with("lib") {
+                    utils::log(
+                        utils::LogLevel::Warn,
+                        "Dynamic library target name must start with lib",
+                    );
+                    utils::log(
+                        utils::LogLevel::Warn,
+                        format!(
+                            "Consider renaming \"{}\" to \"lib{}\"",
+                            target.name, target.name
+                        )
+                        .as_str(),
+                    );
+                    utils::log(
+                        utils::LogLevel::Log,
+                        "Libraries are prefixed with \"lib\" and the lib is replaced by -l when linking",
+                    );
+                    utils::log(
+                        utils::LogLevel::Log,
+                        "For example, libmylib.so becomes -lmylib",
+                    );
+                }
             }
         }
     }
