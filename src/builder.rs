@@ -382,6 +382,7 @@ impl<'a> Target<'a> {
         if self.packages.len() + self.dependant_libs.len() > 0 {
             cmd.push_str("-L");
             cmd.push_str(BUILD_DIR);
+            #[cfg(target_os = "linux") | cfg(target_os = "android")]
             cmd.push_str(" -Wl,-rpath,\'$ORIGIN\' ");
             cmd.push(' ');
         }
