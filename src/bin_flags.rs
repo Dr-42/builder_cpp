@@ -392,9 +392,9 @@ pub fn run(
             cmd.arg(arg);
         }
     }
-    cmd.stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit());
+    cmd.stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     let output = cmd.output();
     if output.is_ok() {
         log(LogLevel::Info, &format!("  Success: {}", &trgt.bin_path));
