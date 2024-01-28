@@ -1,4 +1,4 @@
-use crate::builder::Target;
+use crate::builder::tgt::Target;
 use crate::global_config::GlobalConfig;
 use crate::utils::{
     self,
@@ -10,14 +10,6 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
-
-static BUILD_DIR: &str = ".bld_cpp/bin";
-#[cfg(target_os = "windows")]
-static OBJ_DIR: &str = ".bld_cpp/obj_win32";
-#[cfg(target_os = "linux")]
-static OBJ_DIR: &str = ".bld_cpp/obj_linux";
-#[cfg(target_os = "android")]
-static OBJ_DIR: &str = ".bld_cpp/obj_linux";
 
 ///Cleans the local targets
 /// # Arguments
@@ -31,14 +23,14 @@ pub fn clean(targets: &Vec<TargetConfig>) {
             );
         });
     }
-    if Path::new(OBJ_DIR).exists() {
-        fs::remove_dir_all(OBJ_DIR).unwrap_or_else(|why| {
+    if Path::new(Target::obj_dir()).exists() {
+        fs::remove_dir_all(Target::obj_dir()).unwrap_or_else(|why| {
             log(
                 LogLevel::Error,
                 &format!("Could not remove object directory: {}", why),
             );
         });
-        log(LogLevel::Info, &format!("Cleaning: {}", OBJ_DIR));
+        log(LogLevel::Info, &format!("Cleaning: {}", Target::obj_dir()));
     }
     for target in targets {
         //remove hashes
@@ -58,9 +50,9 @@ pub fn clean(targets: &Vec<TargetConfig>) {
             });
             log(LogLevel::Info, &format!("Cleaning: {}", &hash_path));
         }
-        if Path::new(BUILD_DIR).exists() {
+        if Path::new(Target::build_dir()).exists() {
             let mut bin_name = String::new();
-            bin_name.push_str(BUILD_DIR);
+            bin_name.push_str(Target::build_dir());
             bin_name.push('/');
             bin_name.push_str(&target.name);
             #[cfg(target_os = "windows")]
@@ -106,11 +98,11 @@ pub fn clean_packages(packages: &Vec<Package>) {
     for pack in packages {
         for target in &pack.target_configs {
             #[cfg(target_os = "windows")]
-            let pack_bin_path = format!("{}/{}.dll", BUILD_DIR, &target.name);
+            let pack_bin_path = format!("{}/{}.dll", Target::build_dir(), &target.name);
             #[cfg(target_os = "linux")]
-            let pack_bin_path = format!("{}/{}.so", BUILD_DIR, &target.name);
+            let pack_bin_path = format!("{}/{}.so", Target::build_dir(), &target.name);
             #[cfg(target_os = "android")]
-            let pack_bin_path = format!("{}/{}.so", BUILD_DIR, &target.name);
+            let pack_bin_path = format!("{}/{}.so", Target::build_dir(), &target.name);
 
             if !Path::new(&pack_bin_path).exists() {
                 log(
