@@ -140,6 +140,8 @@ impl Package {
         let mut build_config = BuildConfig {
             compiler: String::new(),
             packages: Vec::new(),
+            pre_build: None,
+            post_build: None,
         };
         let mut target_configs = Vec::new();
 

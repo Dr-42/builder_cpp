@@ -382,6 +382,20 @@ pub fn run(
         );
         std::process::exit(1);
     }
+    if build_config.pre_build.is_some() {
+        log(LogLevel::Log, "Running pre-build script...");
+        let mut cmd = std::process::Command::new(build_config.pre_build.clone().unwrap());
+        cmd.stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
+        let output = cmd.output();
+        if output.is_ok() {
+            log(LogLevel::Info, "  Success");
+        } else {
+            log(LogLevel::Error, "  Error");
+            std::process::exit(1);
+        }
+    }
     log(LogLevel::Log, &format!("Running: {}", &trgt.bin_path));
     let mut cmd = std::process::Command::new(&trgt.bin_path);
     if let Some(bin_args) = bin_args {
@@ -398,6 +412,21 @@ pub fn run(
     } else {
         log(LogLevel::Error, &format!("  Error: {}", &trgt.bin_path));
         std::process::exit(1);
+    }
+
+    if build_config.post_build.is_some() {
+        log(LogLevel::Log, "Running post-build script...");
+        let mut cmd = std::process::Command::new(build_config.post_build.clone().unwrap());
+        cmd.stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
+        let output = cmd.output();
+        if output.is_ok() {
+            log(LogLevel::Info, "  Success");
+        } else {
+            log(LogLevel::Error, "  Error");
+            std::process::exit(1);
+        }
     }
 }
 

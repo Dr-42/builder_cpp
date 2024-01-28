@@ -9,6 +9,8 @@ use super::log::{log, LogLevel};
 pub struct BuildConfig {
     pub compiler: String,
     pub packages: Vec<String>,
+    pub pre_build: Option<String>,
+    pub post_build: Option<String>,
 }
 
 /// Struct describing the target config of the local project
@@ -144,6 +146,30 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
         );
     }
 
+    let pre_build = config["build"].get("pre_build").map(|x| {
+        x.as_str()
+            .unwrap_or_else(|| {
+                log(
+                    LogLevel::Error,
+                    "pre_build is a string containing the command to run",
+                );
+                std::process::exit(1);
+            })
+            .to_string()
+    });
+
+    let post_build = config["build"].get("post_build").map(|x| {
+        x.as_str()
+            .unwrap_or_else(|| {
+                log(
+                    LogLevel::Error,
+                    "post_build is a string containing the command to run",
+                );
+                std::process::exit(1);
+            })
+            .to_string()
+    });
+
     //parse the string into a struct
     let build_config = BuildConfig {
         compiler: config["build"]["compiler"]
@@ -154,6 +180,8 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
             })
             .to_string(),
         packages: pkgs,
+        pre_build,
+        post_build,
     };
 
     let mut tgt = Vec::new();
