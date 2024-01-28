@@ -1,4 +1,7 @@
-use builder_cpp::{bin_flags, utils};
+use builder_cpp::{
+    bin_flags,
+    utils::log::{log, LogLevel},
+};
 use clap::{Parser, Subcommand};
 use directories::ProjectDirs;
 
@@ -106,10 +109,7 @@ license = "NONE"
         match args.commands {
             Some(Commands::Init { name, c, cpp }) => {
                 if c && cpp {
-                    utils::log(
-                        utils::LogLevel::Error,
-                        "Only one of --c or --cpp can be specified",
-                    );
+                    log(LogLevel::Error, "Only one of --c or --cpp can be specified");
                     std::process::exit(1);
                 }
 
@@ -128,14 +128,14 @@ license = "NONE"
                 let parameter = parameter.as_str();
                 let value = value.as_str();
                 GlobalConfig::set_defaults(&config, parameter, value);
-                utils::log(
-                    utils::LogLevel::Log,
+                log(
+                    LogLevel::Log,
                     format!("Setting {} to {}", parameter, value).as_str(),
                 );
                 std::process::exit(0);
             }
             None => {
-                utils::log(utils::LogLevel::Error, "Rust is broken");
+                log(LogLevel::Error, "Rust is broken");
                 std::process::exit(1);
             }
         }
@@ -171,12 +171,12 @@ license = "NONE"
     }
 
     if args.clean {
-        utils::log(utils::LogLevel::Log, "Cleaning...");
+        log(LogLevel::Log, "Cleaning...");
         bin_flags::clean(&targets);
     }
 
     if args.build {
-        utils::log(utils::LogLevel::Log, "Building...");
+        log(LogLevel::Log, "Building...");
         bin_flags::build(&build_config, &targets, gen_cc, gen_vsc, &packages);
     }
 
@@ -186,7 +186,7 @@ license = "NONE"
             .as_ref()
             .map(|x| x.iter().map(|x| x.as_str()).collect());
 
-        utils::log(utils::LogLevel::Log, "Running...");
+        log(LogLevel::Log, "Running...");
         let exe_target = targets.iter().find(|x| x.typ == "exe").unwrap();
         bin_flags::run(bin_args, &build_config, exe_target, &targets, &packages);
     }

@@ -1,7 +1,11 @@
 //! This module contains the buiild related functions
 
 use crate::hasher;
-use crate::utils::{self, log, BuildConfig, LogLevel, Package, TargetConfig};
+use crate::utils::{
+    configs::{BuildConfig, TargetConfig},
+    log::{log, LogLevel},
+    package::Package,
+};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use itertools::Itertools;
@@ -101,12 +105,12 @@ impl<'a> Target<'a> {
         }
         for dep_lib in &dependant_libs {
             if dep_lib.target_config.typ != "dll" {
-                utils::log(LogLevel::Error, "Can add only dlls as dependant libs");
-                utils::log(
+                log(LogLevel::Error, "Can add only dlls as dependant libs");
+                log(
                     LogLevel::Error,
                     &format!("Target: {} is not a dll", dep_lib.target_config.name),
                 );
-                utils::log(
+                log(
                     LogLevel::Error,
                     &format!(
                         "Target: {} is a {}",
@@ -115,14 +119,14 @@ impl<'a> Target<'a> {
                 );
                 std::process::exit(1);
             } else {
-                utils::log(
+                log(
                     LogLevel::Info,
                     &format!("Adding dependant lib: {}", dep_lib.target_config.name),
                 );
             }
             if !dep_lib.target_config.name.starts_with("lib") {
-                utils::log(LogLevel::Error, "Dependant lib name must start with lib");
-                utils::log(
+                log(LogLevel::Error, "Dependant lib name must start with lib");
+                log(
                     LogLevel::Error,
                     &format!(
                         "Target: {} does not start with lib",
@@ -133,12 +137,12 @@ impl<'a> Target<'a> {
             }
         }
         if target_config.deps.len() > dependant_libs.len() + packages.len() {
-            utils::log(LogLevel::Error, "Dependant libs not found");
-            utils::log(
+            log(LogLevel::Error, "Dependant libs not found");
+            log(
                 LogLevel::Error,
                 &format!("Dependant libs: {:?}", target_config.deps),
             );
-            utils::log(
+            log(
                 LogLevel::Error,
                 &format!(
                     "Found libs: {:?}",
@@ -181,7 +185,7 @@ impl<'a> Target<'a> {
     pub fn build(&mut self, gen_cc: bool) {
         if !Path::new(".bld_cpp").exists() {
             std::fs::create_dir(".bld_cpp").unwrap_or_else(|why| {
-                utils::log(
+                log(
                     LogLevel::Error,
                     &format!("Couldn't create .bld_cpp directory: {}", why),
                 );

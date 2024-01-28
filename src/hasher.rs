@@ -1,5 +1,5 @@
 //! This module contains functions for hashing files and checking if they have changed.
-use crate::utils::{log, LogLevel};
+use crate::utils::log::{log, LogLevel};
 use sha1::{Digest, Sha1};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};

@@ -1,6 +1,11 @@
 use crate::builder::Target;
 use crate::global_config::GlobalConfig;
-use crate::utils::{self, log, BuildConfig, LogLevel, Package, TargetConfig};
+use crate::utils::{
+    self,
+    configs::{BuildConfig, TargetConfig},
+    log::{log, LogLevel},
+    package::Package,
+};
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -669,27 +674,23 @@ pub fn init(project_name: &str, is_c: Option<bool>, config: GlobalConfig) {
 }
 
 pub fn init_project(project_name: String, is_c: Option<bool>, config: GlobalConfig) {
-    utils::log(utils::LogLevel::Log, "Initializing project...");
+    log(LogLevel::Log, "Initializing project...");
     init(&project_name, is_c, config);
     std::process::exit(0);
 }
 
-pub fn parse_config() -> (
-    utils::BuildConfig,
-    Vec<utils::TargetConfig>,
-    Vec<utils::Package>,
-) {
+pub fn parse_config() -> (BuildConfig, Vec<TargetConfig>, Vec<Package>) {
     #[cfg(target_os = "linux")]
-    let (build_config, targets) = utils::parse_config("./config_linux.toml", true);
+    let (build_config, targets) = utils::configs::parse_config("./config_linux.toml", true);
     #[cfg(target_os = "windows")]
-    let (build_config, targets) = utils::parse_config("./config_win32.toml", true);
+    let (build_config, targets) = utils::configs::parse_config("./config_win32.toml", true);
     #[cfg(target_os = "android")]
-    let (build_config, targets) = utils::parse_config("./config_linux.toml", true);
+    let (build_config, targets) = utils::configs::parse_config("./config_linux.toml", true);
 
     let mut num_exe = 0;
-    let mut exe_target: Option<&utils::TargetConfig> = None;
+    let mut exe_target: Option<&TargetConfig> = None;
     if targets.is_empty() {
-        utils::log(utils::LogLevel::Error, "No targets in config");
+        log(LogLevel::Error, "No targets in config");
         std::process::exit(1);
     } else {
         //Allow only one exe and set it as the exe_target
@@ -700,45 +701,42 @@ pub fn parse_config() -> (
             } else if target.typ == "dll" {
                 // Check if the dll target name starts with lib
                 if !target.name.starts_with("lib") {
-                    utils::log(
-                        utils::LogLevel::Warn,
+                    log(
+                        LogLevel::Warn,
                         "Dynamic library target name must start with lib",
                     );
-                    utils::log(
-                        utils::LogLevel::Warn,
+                    log(
+                        LogLevel::Warn,
                         format!(
                             "Consider renaming \"{}\" to \"lib{}\"",
                             target.name, target.name
                         )
                         .as_str(),
                     );
-                    utils::log(
-                        utils::LogLevel::Log,
+                    log(
+                        LogLevel::Log,
                         "Libraries are prefixed with \"lib\" and the lib is replaced by -l when linking",
                     );
-                    utils::log(
-                        utils::LogLevel::Log,
-                        "For example, libmylib.so becomes -lmylib",
-                    );
+                    log(LogLevel::Log, "For example, libmylib.so becomes -lmylib");
                 }
             }
         }
     }
 
     if num_exe != 1 || exe_target.is_none() {
-        utils::log(
-            utils::LogLevel::Error,
+        log(
+            LogLevel::Error,
             "Exactly one executable target must be specified",
         );
         std::process::exit(1);
     }
 
     #[cfg(target_os = "linux")]
-    let packages = utils::Package::parse_packages("./config_linux.toml");
+    let packages = Package::parse_packages("./config_linux.toml");
     #[cfg(target_os = "android")]
-    let packages = utils::Package::parse_packages("./config_linux.toml");
+    let packages = Package::parse_packages("./config_linux.toml");
     #[cfg(target_os = "windows")]
-    let packages = utils::Package::parse_packages("./config_win32.toml");
+    let packages = Package::parse_packages("./config_win32.toml");
 
     (build_config, targets, packages)
 }
@@ -765,20 +763,20 @@ pub fn pre_gen_vsc() {
     }
 }
 
-pub fn clean_packages_wrapper(packages: &Vec<utils::Package>) {
-    utils::log(utils::LogLevel::Log, "Cleaning packages...");
+pub fn clean_packages_wrapper(packages: &Vec<Package>) {
+    log(LogLevel::Log, "Cleaning packages...");
     clean_packages(packages);
 }
 
-pub fn update_packages(packages: &Vec<utils::Package>) {
-    utils::log(utils::LogLevel::Log, "Updating packages...");
+pub fn update_packages(packages: &Vec<Package>) {
+    log(LogLevel::Log, "Updating packages...");
     for package in packages {
         package.update();
     }
 }
 
-pub fn restore_packages(packages: &Vec<utils::Package>) {
-    utils::log(utils::LogLevel::Log, "Restoring packages...");
+pub fn restore_packages(packages: &Vec<Package>) {
+    log(LogLevel::Log, "Restoring packages...");
     for package in packages {
         package.restore();
     }

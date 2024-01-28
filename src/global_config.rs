@@ -1,4 +1,4 @@
-use crate::utils;
+use crate::utils::log::{log, LogLevel};
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -40,8 +40,8 @@ impl GlobalConfig {
                 if value == "gcc" || value == "clang" {
                     set_config_param(ConfigParam::DefaultCompiler(value.to_string()), config);
                 } else {
-                    utils::log(
-                        utils::LogLevel::Error,
+                    log(
+                        LogLevel::Error,
                         "Invalid compiler. See `builder-cpp config --help` for more info",
                     );
                     std::process::exit(1);
@@ -51,8 +51,8 @@ impl GlobalConfig {
                 if value == "c" || value == "cpp" {
                     set_config_param(ConfigParam::DefaultLanguage(value.to_string()), config);
                 } else {
-                    utils::log(
-                        utils::LogLevel::Error,
+                    log(
+                        LogLevel::Error,
                         "Invalid language. See `builder-cpp config --help` for more info",
                     );
                     std::process::exit(1);
@@ -63,16 +63,16 @@ impl GlobalConfig {
                     let value = std::fs::read_to_string(value).unwrap();
                     set_config_param(ConfigParam::License(value), config);
                 } else {
-                    utils::log(
-                        utils::LogLevel::Error,
+                    log(
+                        LogLevel::Error,
                         "Invalid license file. See `builder-cpp config --help` for more info",
                     );
                     std::process::exit(1);
                 }
             }
             _ => {
-                utils::log(
-                    utils::LogLevel::Error,
+                log(
+                    LogLevel::Error,
                     "Invalid parameter. See `builder-cpp config --help` for more info",
                 );
                 std::process::exit(1);
