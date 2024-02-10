@@ -556,6 +556,7 @@ impl<'a> Target<'a> {
             } else {
                 if !entry.path().to_str().unwrap().ends_with(".cpp")
                     && !entry.path().to_str().unwrap().ends_with(".c")
+                    && !entry.path().to_str().unwrap().ends_with(".cu")
                 {
                     continue;
                 }
