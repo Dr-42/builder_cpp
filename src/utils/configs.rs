@@ -44,7 +44,10 @@ impl TargetConfig {
             let path = entry.path();
             if path.is_file() {
                 let file_name = path.file_name().unwrap().to_str().unwrap();
-                if file_name.ends_with(".cpp") || file_name.ends_with(".c") {
+                if file_name.ends_with(".cpp")
+                    || file_name.ends_with(".c")
+                    || file_name.ends_with(".cu")
+                {
                     src_names.push(file_name.to_string());
                 }
             } else if path.is_dir() {

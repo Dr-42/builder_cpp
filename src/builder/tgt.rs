@@ -577,6 +577,19 @@ impl<'a> Target<'a> {
         let name = Target::get_src_name(&path);
         let obj_name = self.get_src_obj_name(&name);
         let dependant_includes = self.get_dependant_includes(&path);
+        if dependant_includes.is_err() {
+            log(
+                LogLevel::Error,
+                &format!("Could find the include files for: {}", &path),
+            );
+            let error_chain = dependant_includes.err().unwrap();
+            log(LogLevel::Error, "Error chain:");
+            for error in error_chain.into_iter().rev() {
+                log(LogLevel::Error, &format!("  {}", error));
+            }
+            std::process::exit(1);
+        }
+        let dependant_includes = dependant_includes.unwrap();
         let bin_path = self.bin_path.clone();
         self.srcs
             .push(Src::new(path, name, obj_name, bin_path, dependant_includes));
@@ -602,37 +615,35 @@ impl<'a> Target<'a> {
     }
 
     //returns a vector of .h or .hpp files the given C/C++ depends on
-    fn get_dependant_includes(&mut self, path: &str) -> Vec<String> {
+    fn get_dependant_includes(&mut self, path: &str) -> Result<Vec<String>, Vec<String>> {
         let mut result = Vec::new();
-        let include_substrings = self.get_include_substrings(path).unwrap_or_else(|| {
-            log(
-                LogLevel::Error,
-                &format!("Failed to get include substrings for file: {}", path),
-            );
-            log(
-                LogLevel::Error,
-                &format!(
-                    "File included from: {:?}",
-                    self.dependant_includes.get(path)
-                ),
-            );
-            std::process::exit(1);
-        });
+        let include_substrings = self.get_include_substrings(path);
+        if include_substrings.is_none() {
+            return Err(vec![path.to_string()]);
+        }
+        let include_substrings = include_substrings.unwrap();
         if include_substrings.is_empty() {
-            return result;
+            return Ok(result);
         }
         for include_substring in include_substrings {
             let dep_path = format!("{}/{}", &self.target_config.include_dir, &include_substring);
             if self.dependant_includes.contains_key(&dep_path) {
                 continue;
             }
-            result.append(&mut self.get_dependant_includes(&dep_path));
+            let child_includes = self.get_dependant_includes(&dep_path);
+            if child_includes.is_err() {
+                let mut error_chain = child_includes.err().unwrap();
+                error_chain.push(path.to_string());
+                return Err(error_chain);
+            }
+            let mut child_includes = child_includes.unwrap();
+            result.append(&mut child_includes);
             result.push(dep_path);
             self.dependant_includes
                 .insert(include_substring, result.clone());
         }
 
-        result.into_iter().unique().collect()
+        Ok(result.into_iter().unique().collect())
     }
 
     //returns a vector of strings that are the include substrings
