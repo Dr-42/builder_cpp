@@ -342,7 +342,6 @@ pub fn build(
     }
     if gen_cc {
         let mut cc_file = fs::OpenOptions::new()
-            .write(true)
             .read(true)
             .append(true)
             .open("compile_commands.json")

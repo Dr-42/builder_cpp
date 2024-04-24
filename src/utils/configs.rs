@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read, path::Path};
+use std::{collections::{HashMap, HashSet}, fs::File, io::Read, path::Path};
 use toml::{Table, Value};
 
 use super::log::{log, LogLevel};
@@ -60,34 +60,31 @@ impl TargetConfig {
     }
 
     fn arrange_targets(targets: Vec<TargetConfig>) -> Vec<TargetConfig> {
-        let mut targets = targets.clone();
-        let mut i = 0;
-        while i < targets.len() {
-            let mut j = i + 1;
-            while j < targets.len() {
-                if targets[i].deps.contains(&targets[j].name) {
-                    //Check for circular dependencies
-                    if targets[j].deps.contains(&targets[i].name) {
-                        log(
-                            LogLevel::Error,
-                            &format!(
-                                "Circular dependency found between {} and {}",
-                                targets[i].name, targets[j].name
-                            ),
-                        );
-                        std::process::exit(1);
-                    }
-                    let temp = targets[i].clone();
-                    targets[i] = targets[j].clone();
-                    targets[j] = temp;
-                    i = 0;
-                    break;
-                }
-                j += 1;
-            }
-            i += 1;
+        let mut proj_indices: HashMap<&String, usize> = HashMap::new();
+        for (i, proj) in targets.iter().enumerate() {
+            proj_indices.insert(&proj.name, i);
         }
-        targets
+
+        let mut visited: HashSet<usize> = HashSet::new();
+
+        let mut result: Vec<TargetConfig> = Vec::new();
+
+        fn dfs(proj_index: usize, projects: &Vec<TargetConfig>, proj_indices: &HashMap<&String, usize>, visited: &mut HashSet<usize>, result: &mut Vec<TargetConfig>) {
+            if visited.contains(&proj_index) {
+                return;
+            }
+            visited.insert(proj_index);
+            for dep_name in &projects[proj_index].deps {
+                if let Some(&dep_index) = proj_indices.get(dep_name) {
+                    dfs(dep_index, projects, proj_indices, visited, result);
+                }
+            }
+            result.push(projects[proj_index].clone());
+        }
+        for (i, _) in targets.iter().enumerate() {
+            dfs(i, &targets, &proj_indices, &mut visited, &mut result);
+        }
+        result
     }
 }
 
