@@ -110,6 +110,28 @@ impl Src {
         }
 
         cmd.push_str(&target_config.cflags);
+        cmd.push(' ');
+        if build_config.compiler == "clang" || build_config.compiler == "gcc" {
+            cmd.push_str("-std=");
+            if build_config.cstandard.is_some() {
+                cmd.push_str(build_config.cstandard.as_ref().unwrap());
+            } else {
+                cmd.push_str("c11");
+            }
+        } else if build_config.compiler == "clang++" || build_config.compiler == "g++" {
+            cmd.push_str("-std=");
+            if build_config.cppstandard.is_some() {
+                cmd.push_str(build_config.cppstandard.as_ref().unwrap());
+            } else {
+                cmd.push_str("c++17");
+            }
+        } else {
+            log(
+                LogLevel::Error,
+                &format!("Unsupported compiler: {}", &build_config.compiler),
+            );
+            std::process::exit(1);
+        }
 
         if target_config.typ == "dll" {
             cmd.push_str(" -fPIC");

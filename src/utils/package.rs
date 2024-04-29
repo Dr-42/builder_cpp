@@ -140,6 +140,8 @@ impl Package {
         let mut build_config = BuildConfig {
             compiler: String::new(),
             packages: Vec::new(),
+            cstandard: Some("c11".to_string()),
+            cppstandard: Some("c++17".to_string()),
             pre_build: None,
             post_build: None,
         };

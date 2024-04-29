@@ -1,4 +1,9 @@
-use std::{collections::{HashMap, HashSet}, fs::File, io::Read, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    fs::File,
+    io::Read,
+    path::Path,
+};
 use toml::{Table, Value};
 
 use super::log::{log, LogLevel};
@@ -9,6 +14,8 @@ use super::log::{log, LogLevel};
 pub struct BuildConfig {
     pub compiler: String,
     pub packages: Vec<String>,
+    pub cstandard: Option<String>,
+    pub cppstandard: Option<String>,
     pub pre_build: Option<String>,
     pub post_build: Option<String>,
 }
@@ -69,7 +76,13 @@ impl TargetConfig {
 
         let mut result: Vec<TargetConfig> = Vec::new();
 
-        fn dfs(proj_index: usize, projects: &Vec<TargetConfig>, proj_indices: &HashMap<&String, usize>, visited: &mut HashSet<usize>, result: &mut Vec<TargetConfig>) {
+        fn dfs(
+            proj_index: usize,
+            projects: &Vec<TargetConfig>,
+            proj_indices: &HashMap<&String, usize>,
+            visited: &mut HashSet<usize>,
+            result: &mut Vec<TargetConfig>,
+        ) {
             if visited.contains(&proj_index) {
                 return;
             }
@@ -117,6 +130,13 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
         log(LogLevel::Error, &format!("Error: {}", e));
         std::process::exit(1);
     });
+    let compiler = config["build"]["compiler"]
+        .as_str()
+        .unwrap_or_else(|| {
+            log(LogLevel::Error, "Could not find compiler in config file");
+            std::process::exit(1);
+        })
+        .to_string();
 
     let mut pkgs: Vec<String> = Vec::new();
     let empty_value = Value::Array(Vec::new());
@@ -146,6 +166,30 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
         );
     }
 
+    let cstandard = config["build"].get("cstandard").map(|x| {
+        x.as_str()
+            .unwrap_or_else(|| {
+                log(
+                    LogLevel::Error,
+                    "cstandard is a string containing the c standard to use",
+                );
+                std::process::exit(1);
+            })
+            .to_string()
+    });
+
+    let cppstandard = config["build"].get("cppstandard").map(|x| {
+        x.as_str()
+            .unwrap_or_else(|| {
+                log(
+                    LogLevel::Error,
+                    "cppstandard is a string containing the cpp standard to use",
+                );
+                std::process::exit(1);
+            })
+            .to_string()
+    });
+
     let pre_build = config["build"].get("pre_build").map(|x| {
         x.as_str()
             .unwrap_or_else(|| {
@@ -172,13 +216,9 @@ pub fn parse_config(path: &str, check_dup_src: bool) -> (BuildConfig, Vec<Target
 
     //parse the string into a struct
     let build_config = BuildConfig {
-        compiler: config["build"]["compiler"]
-            .as_str()
-            .unwrap_or_else(|| {
-                log(LogLevel::Error, "Could not find compiler in config file");
-                std::process::exit(1);
-            })
-            .to_string(),
+        compiler,
+        cstandard,
+        cppstandard,
         packages: pkgs,
         pre_build,
         post_build,

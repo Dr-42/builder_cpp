@@ -420,8 +420,20 @@ impl<'a> Target<'a> {
         cc.push_str("{\n");
         if self.build_config.compiler == "clang++" || self.build_config.compiler == "g++" {
             cc.push_str("\t\"command\": \"c++");
+            if self.build_config.cppstandard.is_some() {
+                cc.push_str(" -std=");
+                cc.push_str(self.build_config.cppstandard.as_ref().unwrap());
+            } else {
+                cc.push_str(" -std=c++17");
+            }
         } else if self.build_config.compiler == "clang" || self.build_config.compiler == "gcc" {
             cc.push_str("\t\"command\": \"cc");
+            if self.build_config.cstandard.is_some() {
+                cc.push_str(" -std=");
+                cc.push_str(self.build_config.cstandard.as_ref().unwrap());
+            } else {
+                cc.push_str(" -std=c11");
+            }
         } else {
             log(
                 LogLevel::Error,

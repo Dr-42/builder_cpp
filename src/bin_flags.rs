@@ -156,7 +156,6 @@ pub fn build(
     }
     if gen_cc {
         let mut cc_file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .open("compile_commands.json")
             .unwrap_or_else(|why| {
@@ -174,7 +173,6 @@ pub fn build(
 
     if gen_vsc {
         let mut vsc_file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .open(".vscode/c_cpp_properties.json")
             .unwrap_or_else(|why| {
@@ -203,6 +201,18 @@ pub fn build(
                 &format!("Unsupported compiler: {}", compiler_path),
             );
         }
+
+        let cstandard: String = if build_config.cstandard.is_some() {
+            build_config.cstandard.clone().unwrap()
+        } else {
+            "c11".to_string()
+        };
+
+        let cppstandard: String = if build_config.cppstandard.is_some() {
+            build_config.cppstandard.clone().unwrap()
+        } else {
+            "c++17".to_string()
+        };
 
         #[cfg(target_os = "windows")]
         let compiler_path = Command::new("sh")
@@ -237,8 +247,8 @@ pub fn build(
                 "_UNICODE"
             ],
             "compilerPath": "{}",
-            "cStandard": "c11",
-            "cppStandard": "c++17",
+            "cStandard": "{}",
+            "cppStandard": "{}",
             "intelliSenseMode": "windows-{}"
         }}
     ],
@@ -246,6 +256,8 @@ pub fn build(
 }}"#,
             inc_dirs.join("\",\n\t\t\t\t\""),
             compiler_path,
+            cstandard,
+            cppstandard,
             intellimode
         );
 
@@ -275,8 +287,8 @@ pub fn build(
                 "_UNICODE"
             ],
             "compilerPath": "{}",
-            "cStandard": "c11",
-            "cppStandard": "c++17",
+            "cStandard": "{}",
+            "cppStandard": "{}",
             "intelliSenseMode": "linux-{}"
         }}
     ],
@@ -284,6 +296,8 @@ pub fn build(
 }}"#,
             inc_dirs.join("\",\n\t\t\t\t\""),
             compiler_path,
+            cstandard,
+            cppstandard,
             intellimode
         );
         #[cfg(target_os = "android")]
@@ -312,8 +326,8 @@ pub fn build(
                 "_UNICODE"
             ],
             "compilerPath": "{}",
-            "cStandard": "c11",
-            "cppStandard": "c++17",
+            "cStandard": "{}",
+            "cppStandard": "{}",
             "intelliSenseMode": "linux-{}"
         }}
     ],
@@ -321,6 +335,8 @@ pub fn build(
 }}"#,
             inc_dirs.join("\",\n\t\t\t\t\""),
             compiler_path,
+            cstandard,
+            cppstandard,
             intellimode
         );
 
