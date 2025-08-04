@@ -195,20 +195,13 @@ pub fn build(
             intellimode = "gcc-x64".to_string();
         } else if compiler_path == "clang" || compiler_path == "clang++" {
             intellimode = "clang-x64".to_string();
-        } else if compiler_path == "fil-c" || compiler_path == "fil-c++" {
-            intellimode = "fil-x64".to_string();
-        } else if compiler_path == "msvc" {
-            intellimode = "msvc-x64".to_string();
-        } else if compiler_path == "zig" {
-            intellimode = "zig-x64".to_string();
-        } else if compiler_path == "dmd" {
-            intellimode = "dmd-x64".to_string();
-        } else if compiler_path == "gdc" {
-            intellimode = "gdc-x64".to_string();
         } else {
             log(
-                LogLevel::Error,
-                &format!("Unsupported compiler: {}", compiler_path),
+                LogLevel::Warn,
+                &format!(
+                    "Unsupported compiler: {}, not add intellimode in vscode",
+                    compiler_path
+                ),
             );
         }
 

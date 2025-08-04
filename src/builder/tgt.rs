@@ -436,14 +436,27 @@ impl<'a> Target<'a> {
             }
         } else {
             log(
-                LogLevel::Error,
+                LogLevel::Warn,
                 &format!("Compiler: {} is not supported", &self.build_config.compiler),
             );
-            log(
-                LogLevel::Error,
-                "Supported compilers: clang++, g++, clang, gcc",
-            );
-            std::process::exit(1);
+            log(LogLevel::Info, "Assuming c++ compiler ends with `++`");
+            if self.build_config.compiler.ends_with("++") {
+                cc.push_str("\t\"command\": \"c++");
+                if self.build_config.cppstandard.is_some() {
+                    cc.push_str(" -std=");
+                    cc.push_str(self.build_config.cppstandard.as_ref().unwrap());
+                } else {
+                    cc.push_str(" -std=c++17");
+                }
+            } else {
+                cc.push_str("\t\"command\": \"cc");
+                if self.build_config.cstandard.is_some() {
+                    cc.push_str(" -std=");
+                    cc.push_str(self.build_config.cstandard.as_ref().unwrap());
+                } else {
+                    cc.push_str(" -std=c11");
+                }
+            }
         }
         cc.push_str(" -c -o ");
         cc.push_str(&src.obj_name);

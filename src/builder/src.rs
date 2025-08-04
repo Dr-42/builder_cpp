@@ -127,10 +127,12 @@ impl Src {
             }
         } else {
             log(
-                LogLevel::Error,
-                &format!("Unsupported compiler: {}", &build_config.compiler),
+                LogLevel::Warn,
+                &format!(
+                    "Unknown compiler: {}, no standard restriction being applied",
+                    build_config.compiler
+                ),
             );
-            std::process::exit(1);
         }
 
         if target_config.typ == "dll" {
