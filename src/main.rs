@@ -25,8 +25,8 @@ struct Args {
     commands: Option<Commands>,
 
     /// Arguments to pass to the executable when running
-    #[arg(long, num_args(1..))]
-    bin_args: Option<Vec<String>>,
+    #[arg(num_args(0..), last = true)]
+    bin_args: Vec<String>,
     /// Generate compile_commands.json
     #[arg(long)]
     gen_cc: bool,
@@ -181,13 +181,15 @@ license = "NONE"
     }
 
     if args.run {
-        let bin_args: Option<Vec<&str>> = args
-            .bin_args
-            .as_ref()
-            .map(|x| x.iter().map(|x| x.as_str()).collect());
+        let bin_args: Vec<String> = args.bin_args;
 
         log(LogLevel::Log, "Running...");
         let exe_target = targets.iter().find(|x| x.typ == "exe").unwrap();
+        let bin_args = if bin_args.is_empty() {
+            None
+        } else {
+            Some(bin_args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())
+        };
         bin_flags::run(bin_args, &build_config, exe_target, &targets, &packages);
     }
 }
