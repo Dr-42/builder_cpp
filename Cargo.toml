@@ -1,6 +1,6 @@
 [package]
 name = "builder_cpp"
-version = "0.8.5"
+version = "0.9.5"
 edition = "2021"
 description = "A simple build tool for building C and C++ applications"
 license = "MIT"
